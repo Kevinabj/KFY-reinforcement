@@ -31,7 +31,7 @@ you actually run.
 
 ```powershell
 # 1. clone the repo
-git clone <REPO_URL> applied_project
+git clone https://github.com/Kevinabj/KFY-reinforcement.git applied_project
 cd applied_project
 
 # 2. create the virtual environment and install dependencies (CPU torch first)
@@ -66,45 +66,32 @@ before running training.
 
 ## 3. Your assigned runs
 
-### Kevin (owner A): about 4.0 hours
+### Kevin (owner A): about 4.0 hours, 5 runs
 
 ```powershell
-# checkout your branch for results
-git checkout -b runs/kevin
-
-# run your share of the experiment matrix
 .\.venv\Scripts\python.exe scripts\run_all.py --owner A
 ```
 
-You will train: DQN CartPole seeds 1-2, SAC MountainCarContinuous seeds
-0-2. 5 runs total.
+Trains: DQN CartPole seeds 1-2, SAC MountainCarContinuous seeds 0-2.
 
-### Youssef (owner B): about 3.9 hours
+### Youssef (owner B): about 3.9 hours, 8 runs
 
 ```powershell
-# checkout your branch for results
-git checkout -b runs/youssef
-
-# run your share of the experiment matrix
 .\.venv\Scripts\python.exe scripts\run_all.py --owner B
 ```
 
-You will train: DQN Acrobot seeds 1-2, SAC Pendulum seeds 0-2, TD3
-Pendulum seeds 0-2. 8 runs total.
+Trains: DQN Acrobot seeds 1-2, SAC Pendulum seeds 0-2, TD3 Pendulum
+seeds 0-2.
 
-### Fuad (owner C): about 3.9 hours
+### Fuad (owner C): about 3.9 hours, 13 runs
 
 ```powershell
-# checkout your branch for results
-git checkout -b runs/fuad
-
-# run your share of the experiment matrix
 .\.venv\Scripts\python.exe scripts\run_all.py --owner C
 ```
 
-You will train: PPO CartPole seeds 1-2, PPO Acrobot seeds 0-2, PPO
-Pendulum seeds 1-2, PPO MountainCarContinuous seeds 0-2, TD3
-MountainCarContinuous seeds 0-2. 13 runs total.
+Trains: PPO CartPole seeds 1-2, PPO Acrobot seeds 0-2, PPO Pendulum
+seeds 1-2, PPO MountainCarContinuous seeds 0-2, TD3
+MountainCarContinuous seeds 0-2.
 
 ---
 
@@ -140,15 +127,21 @@ it will pick up where it left off.
 From your terminal in `applied_project/`:
 
 ```powershell
+# pick up any commits teammates pushed while you were training
+git pull --rebase
+
 # add your new CSVs
 git add logs/
-git status                   # sanity-check: only new .csv files should appear
-git commit -m "owner X runs"  # replace X with your initial
-git push -u origin runs/<your-name>
+git status                              # only your new .csv files should appear
+git commit -m "owner X runs"            # replace X with your initial
+git push
 ```
 
-Then ping Kevin on the team chat with "owner X done, branch pushed".
-Kevin will merge into `main`. Do not push to `main` directly.
+Each teammate writes to disjoint file paths (different env / algo /
+seed combinations), so concurrent pushes never produce merge conflicts.
+If `git push` fails because someone else pushed first, just run
+`git pull --rebase` again and `git push`. Ping the team chat with
+"owner X done" so we know when to merge.
 
 ---
 
