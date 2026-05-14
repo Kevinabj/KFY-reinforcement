@@ -1,0 +1,10 @@
+\begin{tabular}{llrlrrrl}
+\toprule
+Algo & Env & Seeds & Final return & Steps$\to$thr & Wall (s/100k) & Actor params & On-pol \\
+\midrule
+DQN & CartPole-v1 & 1 & 258.8\ \([259,259]\) & 100k & 144 & 4.6k & no \\
+DQN & Acrobot-v1 & 1 & -101.2\ \([-101,-101]\) & 42k & 136 & 4.8k & no \\
+PPO & CartPole-v1 & 1 & 447.9\ \([448,448]\) & 68k & 299 & 4.6k & yes \\
+PPO & Pendulum-v1 & 1 & -218.5\ \([-218,-218]\) & 88k & 452 & 4.5k & yes \\
+\bottomrule
+\end{tabular}
