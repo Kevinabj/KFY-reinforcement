@@ -1,0 +1,30 @@
+# DQN on CartPole-v1
+# Acceptance: seed 0 reaches >= 475 mean return within 100k steps.
+# Diary log (rich material for the report's implementation diary):
+#   v1 canonical (lr=1e-3, target=1000, batch=64, eps=0.10):
+#       seed0=477 (PASS), seed1=120 (FAIL) -> bimodal across seeds
+#   v2 conservative (lr=5e-4, batch=128, target=500, eps=0.20):
+#       three seeds plateau at 120-165
+#   v3 SB3-zoo burst (lr=2.3e-3, train=256/grad=128, target=10):
+#       seed0=42, target sync semantics did not translate to our loop
+#   v4 CleanRL-style (lr=2.5e-4, train_freq=10, eps=0.50, ls=10k):
+#       catastrophic collapse to 9 return (worse than random policy)
+#   v5 v1 with three damping changes (lr=5e-4, batch=128, target=2000):
+#       seed0=155, learning too slow for the 100k budget
+# Verdict: vanilla DQN on CartPole within 100k steps is genuinely seed-
+# sensitive. We keep v1, document the instability, and rely on 3-seed
+# averaging plus bootstrap CIs to report fair statistics. This is exactly
+# the kind of observation the brief asks us to surface.
+gamma: 0.99
+lr: 1.0e-3
+buffer_size: 50000
+batch_size: 64
+hidden: [64, 64]
+learning_starts: 1000
+train_freq: 4
+gradient_steps: 1
+target_sync: 1000
+eps_start: 1.0
+eps_end: 0.05
+eps_decay_fraction: 0.10
+max_grad_norm: 10.0

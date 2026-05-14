@@ -1,0 +1,15 @@
+# PPO on Acrobot-v1
+gamma: 0.99
+gae_lambda: 0.94
+lr: 3.0e-4
+n_steps: 1024
+n_epochs: 10
+batch_size: 64
+clip_ratio: 0.2
+vf_coef: 0.5
+ent_coef_discrete: 0.0
+max_grad_norm: 0.5
+anneal_lr: true
+norm_adv: true
+clip_value_loss: true
+hidden: [64, 64]

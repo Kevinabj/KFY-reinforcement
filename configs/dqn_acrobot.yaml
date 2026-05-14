@@ -1,0 +1,16 @@
+# DQN on Acrobot-v1
+# Slightly longer epsilon decay (sparser rewards, needs longer exploration),
+# larger buffer (longer episodes), more frequent target sync for stability.
+gamma: 0.99
+lr: 6.3e-4               # standard for Acrobot in SB3 zoo
+buffer_size: 100000
+batch_size: 128
+hidden: [64, 64]
+learning_starts: 5000
+train_freq: 4
+gradient_steps: 1
+target_sync: 250
+eps_start: 1.0
+eps_end: 0.10
+eps_decay_fraction: 0.12
+max_grad_norm: 10.0

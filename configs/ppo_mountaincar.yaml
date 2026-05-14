@@ -1,0 +1,16 @@
+# PPO on MountainCarContinuous-v0 (sparse reward env)
+# Long rollouts and entropy bonus help discover the goal.
+gamma: 0.9999             # high gamma for credit assignment over 999-step episodes
+gae_lambda: 0.9
+lr: 7.77e-5
+n_steps: 8
+n_epochs: 10
+batch_size: 64
+clip_ratio: 0.1
+vf_coef: 0.19
+ent_coef_continuous: 0.00429
+max_grad_norm: 5.0
+anneal_lr: true
+norm_adv: true
+clip_value_loss: true
+hidden: [64, 64]

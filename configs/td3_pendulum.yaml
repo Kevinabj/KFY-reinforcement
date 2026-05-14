@@ -1,0 +1,16 @@
+# TD3 on Pendulum-v1
+# Canonical TD3 defaults from Fujimoto 2018.
+gamma: 0.99
+tau: 0.005
+lr_actor: 3.0e-4
+lr_critic: 3.0e-4
+buffer_size: 100000
+batch_size: 256
+hidden: [256, 256]
+learning_starts: 1000
+train_freq: 1
+gradient_steps: 1
+policy_delay: 2
+exploration_noise: 0.1
+target_noise: 0.2
+target_noise_clip: 0.5

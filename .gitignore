@@ -1,0 +1,43 @@
+# venv
+.venv/
+.python-version
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.ipynb_checkpoints/
+
+# experiment outputs
+# CSVs ARE tracked in git so teammates can share results.
+# .pt checkpoints are not (too big), and random-policy logs are noise.
+*.pt
+*.ckpt
+logs/random/
+
+# generated artefacts (keep the source, ignore intermediate builds)
+report/*.aux
+report/*.log
+report/*.out
+report/*.bbl
+report/*.blg
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
+poster/*.aux
+poster/*.log
+poster/*.out
+poster/*.bbl
+poster/*.blg
+poster/*.synctex.gz
+poster/*.fls
+poster/*.fdb_latexmk
+
+# OS
+Thumbs.db
+.DS_Store
+
+# editor
+.vscode/
+.idea/

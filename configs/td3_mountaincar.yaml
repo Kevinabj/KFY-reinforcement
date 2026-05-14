@@ -1,0 +1,16 @@
+# TD3 on MountainCarContinuous-v0 (sparse reward)
+# Larger exploration noise and warmup to discover the goal.
+gamma: 0.9999
+tau: 0.005
+lr_actor: 3.0e-4
+lr_critic: 3.0e-4
+buffer_size: 100000
+batch_size: 256
+hidden: [256, 256]
+learning_starts: 10000
+train_freq: 1
+gradient_steps: 1
+policy_delay: 2
+exploration_noise: 0.3
+target_noise: 0.2
+target_noise_clip: 0.5
