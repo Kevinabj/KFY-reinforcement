@@ -2,9 +2,15 @@
 \toprule
 Algo & Env & Seeds & Final return & Steps$\to$thr & Wall (s/100k) & Actor params & On-pol \\
 \midrule
-DQN & CartPole-v1 & 1 & 258.8\ \([259,259]\) & 100k & 144 & 4.6k & no \\
-DQN & Acrobot-v1 & 1 & -101.2\ \([-101,-101]\) & 42k & 136 & 4.8k & no \\
-PPO & CartPole-v1 & 1 & 447.9\ \([448,448]\) & 68k & 299 & 4.6k & yes \\
-PPO & Pendulum-v1 & 1 & -218.5\ \([-218,-218]\) & 88k & 452 & 4.5k & yes \\
+DQN & CartPole-v1 & 3 & 164.4\ \([111,259]\) & 100k & 98 & 4.6k & no \\
+DQN & Acrobot-v1 & 3 & -96.1\ \([-101,-94]\) & 30k & 120 & 4.8k & no \\
+PPO & CartPole-v1 & 3 & 380.1\ \([350,402]\) & nank & 442 & 4.6k & yes \\
+PPO & Acrobot-v1 & 3 & -127.4\ \([-216,-82]\) & 110k & 457 & 4.8k & yes \\
+PPO & Pendulum-v1 & 3 & -247.9\ \([-265,-226]\) & 95k & 450 & 4.5k & yes \\
+PPO & MountainCarContinuous-v0 & 3 & -56.2\ \([-100,-5]\) & nank & 1961 & 4.4k & yes \\
+SAC & Pendulum-v1 & 3 & -146.1\ \([-152,-137]\) & 7k & 1183 & 67.3k & no \\
+SAC & MountainCarContinuous-v0 & 3 & -0.8\ \([-1,-1]\) & nank & 2713 & 67.1k & no \\
+TD3 & Pendulum-v1 & 3 & -154.9\ \([-160,-148]\) & 9k & 483 & 67.1k & no \\
+TD3 & MountainCarContinuous-v0 & 3 & -9.1\ \([-9,-9]\) & nank & 862 & 66.8k & no \\
 \bottomrule
 \end{tabular}
