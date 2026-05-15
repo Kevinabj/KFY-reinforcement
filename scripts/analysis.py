@@ -195,6 +195,12 @@ def steps_to_threshold(df_run: pd.DataFrame, thr: float, window: int = 20) -> Op
 
 
 # ----------------------------------------------------------------------------- plots
+def _format_steps_axis(ax) -> None:
+    """Show x-axis tick labels as e.g. '50k' instead of '50000', preventing overlap."""
+    from matplotlib.ticker import FuncFormatter
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x/1000)}k" if x else "0"))
+
+
 def plot_main_grid(df: pd.DataFrame, out: Path) -> None:
     """2x2 grid: one subplot per env, all applicable algos overlaid."""
     fig, axes = plt.subplots(2, 2, figsize=(11, 7.5), sharex=False)
@@ -221,6 +227,7 @@ def plot_main_grid(df: pd.DataFrame, out: Path) -> None:
         ax.set_xlabel("Environment steps")
         ax.set_ylabel("Episode return")
         ax.legend(loc="best")
+        _format_steps_axis(ax)
     fig.tight_layout()
     fig.savefig(out)
     plt.close(fig)
@@ -253,6 +260,7 @@ def plot_per_env(df: pd.DataFrame, out_dir: Path) -> None:
         ax.set_xlabel("Environment steps")
         ax.set_ylabel("Episode return")
         ax.legend(loc="best")
+        _format_steps_axis(ax)
         fig.tight_layout()
         fig.savefig(out_dir / f"{env_id}.pdf")
         plt.close(fig)
@@ -285,6 +293,7 @@ def plot_seed_grid(df: pd.DataFrame, out_dir: Path) -> None:
         ax.set_xlabel("Environment steps")
         ax.set_ylabel("Episode return (20-ep rolling)")
         ax.legend(loc="best", ncol=2)
+        _format_steps_axis(ax)
         fig.tight_layout()
         fig.savefig(out_dir / f"{algo}_{env_id}.pdf")
         plt.close(fig)
@@ -470,9 +479,9 @@ def write_scoreboard_latex(board: pd.DataFrame, out: Path) -> None:
     lines.append(r"\midrule")
     for _, r in board.iterrows():
         final = f"{r.final_mean:.1f}\\ \\([{r.final_ci_lo:.0f},{r.final_ci_hi:.0f}]\\)"
-        steps = f"{r.steps_to_thr/1000:.0f}k" if r.steps_to_thr is not None else "--"
+        steps = f"{r.steps_to_thr/1000:.0f}k" if pd.notna(r.steps_to_thr) else "--"
         wall = f"{r.sec_per_100k:.0f}"
-        params = f"{r.actor_params/1000:.1f}k" if r.actor_params is not None else "--"
+        params = f"{r.actor_params/1000:.1f}k" if pd.notna(r.actor_params) else "--"
         on_pol = "yes" if r.on_policy else "no"
         lines.append(
             f"{ALGO_LABEL[r.algo]} & {r.env} & {r.n_seeds} & "
