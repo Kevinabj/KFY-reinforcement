@@ -145,19 +145,91 @@ If `git push` fails because someone else pushed first, just run
 
 ---
 
-## 6. What is in this repo
+## 6. Phase 4: Ablations
+
+After the main matrix is in (all 30 seed CSVs present under `logs/`),
+each owner runs **one** ablation sweep. CSVs land at
+`logs_ablation/<sweep>/<value>/seed<N>.csv` and are automatically picked
+up by `scripts/analysis.py` to produce `plots/ablations/<sweep>.pdf`.
+
+Before running, always `git pull` to make sure `scripts/run_ablations.py`
+is the latest version.
+
+### Kevin (V100 on gnoto): SAC alpha sweep on MountainCarContinuous, ~3 h
+
+```bash
+cd ~/KFY-reinforcement
+git pull
+python scripts/run_ablations.py --sweep sac_alpha &
+echo "PID: $!"
+disown
+```
+
+The `& disown` pattern detaches the process so you can close the gnoto
+browser tab and the run keeps going. Comes back via `pgrep -af train.py`.
+
+### Kevin (local laptop): DQN target_sync sweep on CartPole, ~30 min
+
+```powershell
+cd "C:\Users\Kevin\Desktop\EPFL Courses\Reinforcement-Learning\applied_project"
+git pull
+.\.venv\Scripts\python.exe scripts\run_ablations.py --sweep dqn_target_sync
+```
+
+### Youssef: PPO clip_ratio sweep on Pendulum, ~2.25 h
+
+```powershell
+git pull
+.\.venv\Scripts\python.exe scripts\run_ablations.py --sweep ppo_clip_ratio
+```
+
+### Fuad: TD3 exploration_noise sweep on MountainCarContinuous, ~1.5 h
+
+```powershell
+git pull
+.\.venv\Scripts\python.exe scripts\run_ablations.py --sweep td3_exploration_noise
+```
+
+### After your ablation finishes
+
+```powershell
+git pull --rebase
+git add logs_ablation/
+git commit -m "ablations: <sweep name>"
+git push
+```
+
+Same convention as the main runs: each sweep writes to disjoint
+directories under `logs_ablation/`, so concurrent pushes do not conflict.
+Ping the team chat with "ablation <sweep> done" so we know when to merge.
+
+### Sweep details (for the report)
+
+| sweep | values tested | env | step budget | hypothesis |
+|---|---|---|---|---|
+| `dqn_target_sync` | 100, 1000, 5000 | CartPole-v1 | 100k | 1000 is canonical; too-frequent destabilises Q; too-rare slows convergence |
+| `ppo_clip_ratio` | 0.1, 0.2, 0.3 | Pendulum-v1 | 200k | 0.2 canonical; 0.1 too conservative; 0.3 breaks trust-region intuition |
+| `sac_alpha` | auto, fixed 0.05, fixed 0.20 | MountainCarContinuous-v0 | 100k | sparse reward stresses exploration; auto should help; fixed-low should fail |
+| `td3_exploration_noise` | 0.1, 0.3, 0.5 | MountainCarContinuous-v0 | 100k | 0.1 too low for sparse; higher noise should accelerate goal discovery |
+
+---
+
+## 7. What is in this repo
 
 - `algos/`: the four algorithm implementations (DQN, PPO, SAC, TD3). Frozen.
 - `common/`: shared infrastructure (env factory, replay/rollout buffers, networks, logger, seeding).
 - `configs/`: per-(algo, env) YAML hyperparameter files.
-- `scripts/`: train.py, run_all.py, plot.py, plus smoke tests and inspectors.
-- `logs/`: training CSVs, one per (algo, env, seed). CSVs are tracked in git so we can share results across machines.
+- `scripts/`: train.py, run_all.py, run_ablations.py, plot.py, analysis.py, status.py, plus smoke tests and inspectors.
+- `logs/`: main-matrix training CSVs, one per (algo, env, seed). Tracked in git.
+- `logs_ablation/`: ablation sweep CSVs at `<sweep>/<value>/seed<N>.csv`. Tracked in git.
+- `plots/`: figures and tables produced by `scripts/analysis.py`.
+- `report/`: LaTeX source for the 6-8 page report.
 - `PROJECT_PLAN.md`: the full plan, phase by phase, with diary material.
 - `requirements.txt`: pinned dependencies.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |

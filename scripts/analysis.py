@@ -300,6 +300,63 @@ def plot_seed_grid(df: pd.DataFrame, out_dir: Path) -> None:
     print(f"  wrote seed-grid plots to {out_dir.relative_to(ROOT)}")
 
 
+# ----------------------------------------------------------------------------- ablations
+ABLATION_TITLES = {
+    "dqn_target_sync": ("DQN target sync sweep on CartPole-v1", "target_sync"),
+    "ppo_clip_ratio": ("PPO clip ratio sweep on Pendulum-v1", "clip_ratio"),
+    "sac_alpha": ("SAC alpha sweep on MountainCarContinuous-v0", "alpha setting"),
+    "td3_exploration_noise": ("TD3 exploration noise sweep on MountainCarContinuous-v0", "sigma"),
+}
+
+
+def plot_ablations(abl_dir: Path, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for sweep_dir in sorted(abl_dir.iterdir()):
+        if not sweep_dir.is_dir():
+            continue
+        sweep_name = sweep_dir.name
+        # collect runs per value
+        rows = []
+        for value_dir in sorted(sweep_dir.iterdir()):
+            if not value_dir.is_dir():
+                continue
+            value_label = value_dir.name
+            for csv in value_dir.glob("seed*.csv"):
+                seed = int(csv.stem.replace("seed", ""))
+                df = pd.read_csv(csv)
+                df["value"] = value_label
+                df["seed"] = seed
+                rows.append(df)
+        if not rows:
+            continue
+        sweep_df = pd.concat(rows, ignore_index=True)
+
+        title, param_name = ABLATION_TITLES.get(
+            sweep_name, (f"{sweep_name} sweep", "value")
+        )
+        fig, ax = plt.subplots(figsize=(6.5, 4.3))
+        # one line per value, color from a small palette
+        values = sorted(sweep_df["value"].unique())
+        palette = plt.cm.viridis(np.linspace(0.15, 0.85, len(values)))
+        for color, value in zip(palette, values):
+            sub = sweep_df[sweep_df.value == value]
+            agg = bin_and_bootstrap(sub)
+            ax.plot(agg["step_mid"], agg["mean"], color=color,
+                    label=f"{param_name}={value}")
+            if sub["seed"].nunique() >= 2:
+                ax.fill_between(agg["step_mid"], agg["lo"], agg["hi"],
+                                color=color, alpha=0.16, linewidth=0)
+        ax.set_title(title)
+        ax.set_xlabel("Environment steps")
+        ax.set_ylabel("Episode return")
+        ax.legend(loc="best")
+        _format_steps_axis(ax)
+        fig.tight_layout()
+        fig.savefig(out_dir / f"{sweep_name}.pdf")
+        plt.close(fig)
+        print(f"  wrote {(out_dir / (sweep_name + '.pdf')).relative_to(ROOT)}")
+
+
 # ----------------------------------------------------------------------------- bar charts
 def plot_sample_efficiency(rows: pd.DataFrame, out: Path) -> None:
     """Bar chart of steps-to-threshold per (algo, env)."""
@@ -535,11 +592,11 @@ def main() -> None:
         plot_wall_clock(board, out_dir / "bars" / "wall_clock.pdf")
         plot_param_count(board, out_dir / "bars" / "param_count.pdf")
 
-    # ablation figures (only if logs_ablation/ exists)
+    # ablation figures
     abl_dir = ROOT / "logs_ablation"
     if abl_dir.exists() and any(abl_dir.iterdir()):
-        print("\nGenerating ablation figures (placeholder, populated in Phase 4):")
-        # Implementation will land when Phase 4 CSVs are produced.
+        print("\nGenerating ablation figures:")
+        plot_ablations(abl_dir, out_dir / "ablations")
     else:
         print("\nNo ablation CSVs yet; skipping ablation figures.")
 

@@ -36,6 +36,33 @@ ALGOS = {
 }
 
 
+def _parse_override(s: str):
+    """Parse a CLI override of the form key=value into (key, typed_value).
+
+    Tries int -> float -> bool -> str in that order. Bools accept true/false/yes/no.
+    """
+    if "=" not in s:
+        raise argparse.ArgumentTypeError(f"Override must be key=value (got {s!r})")
+    key, val = s.split("=", 1)
+    key = key.strip()
+    val = val.strip()
+    # bool
+    if val.lower() in {"true", "yes"}:
+        return key, True
+    if val.lower() in {"false", "no"}:
+        return key, False
+    # numeric
+    try:
+        return key, int(val)
+    except ValueError:
+        pass
+    try:
+        return key, float(val)
+    except ValueError:
+        pass
+    return key, val
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--algo", required=True, choices=list(ALGOS.keys()))
@@ -44,6 +71,13 @@ def main() -> None:
     p.add_argument("--config", default=None, help="Optional YAML config; algos provide defaults.")
     p.add_argument("--total-steps", type=int, required=True)
     p.add_argument("--log-dir", default="logs")
+    p.add_argument(
+        "--override",
+        action="append",
+        default=[],
+        type=_parse_override,
+        help="Override a config key, e.g. --override target_sync=5000. Repeatable.",
+    )
     args = p.parse_args()
 
     set_seed(args.seed)
@@ -53,6 +87,10 @@ def main() -> None:
     if args.config is not None:
         with open(args.config, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
+
+    # Apply CLI overrides on top of YAML.
+    for key, val in args.override:
+        cfg[key] = val
 
     module = importlib.import_module(ALGOS[args.algo])
     module.train(env, cfg, args.seed, args.total_steps, args.log_dir)
