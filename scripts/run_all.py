@@ -14,9 +14,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TRAIN = ROOT / "scripts" / "train.py"
-PY = ROOT / ".venv" / "Scripts" / "python.exe"
-if not PY.exists():
-    PY = Path(sys.executable)  # fall back to current interpreter
+# Try Windows then Linux venv layout; fall back to current interpreter.
+_VENV_CANDIDATES = [
+    ROOT / ".venv" / "Scripts" / "python.exe",
+    ROOT / ".venv" / "bin" / "python",
+]
+PY = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable))
 
 SEEDS = [0, 1, 2]
 

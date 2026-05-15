@@ -42,6 +42,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Locate the project's venv python so we don't accidentally call system Python
+# (which lacks gymnasium/torch). Fall back to sys.executable if not found.
+_VENV_PY_CANDIDATES = [
+    ROOT / ".venv" / "bin" / "python",
+    ROOT / ".venv" / "Scripts" / "python.exe",
+]
+PYTHON = next((str(p) for p in _VENV_PY_CANDIDATES if p.exists()), sys.executable)
+
 # (algo, env, total_steps, base_config_yaml, override_pairs_per_value, value_label)
 # override_pairs_per_value: list of (label, [(key, value), ...])
 SWEEPS: dict = {
@@ -121,7 +129,7 @@ def main() -> None:
             continue
 
         cmd = [
-            sys.executable,
+            PYTHON,
             str(ROOT / "scripts" / "train.py"),
             "--algo", spec["algo"],
             "--env", spec["env"],
