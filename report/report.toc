@@ -1,0 +1,3 @@
+\contentsline {section}{Question 1: Identification of $P(Y \mid do(A))$ from $\mathcal {D}_1, \mathcal {D}_2, \mathcal {D}_3$}{2}{section*.2}%
+\contentsline {section}{Question 2: Bounds on the ACE in the binary IV model}{5}{section*.8}%
+\contentsline {section}{Question 3: Difference-in-Differences for the Lausanne job training program}{6}{section*.9}%
