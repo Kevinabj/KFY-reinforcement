@@ -26,8 +26,11 @@ if str(ROOT) not in sys.path:
 
 # Import the matrix so we know the target step count per (algo, env).
 from scripts.run_all import MATRIX  # noqa: E402
+from scripts.run_ablations import SWEEPS  # noqa: E402
 
 TARGET = {(algo, env): total for algo, env, total, _, _ in MATRIX}
+
+ABL_TARGET = {sweep: spec["total_steps"] for sweep, spec in SWEEPS.items()}
 
 
 def fmt_time(t: float) -> str:
@@ -132,6 +135,77 @@ def main() -> None:
         m = int((total_eta_seconds % 3600) // 60)
         s = int(total_eta_seconds % 60)
         print(f"Estimated time to finish in-progress runs:           {h}h{m:02d}m{s:02d}s")
+
+    # ----------------------------------------------------------------- ablations
+    abl_dir = ROOT / "logs_ablation"
+    abl_csvs = sorted(
+        abl_dir.glob("*/*/seed*.csv"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    ) if abl_dir.exists() else []
+
+    if abl_csvs:
+        print("\n" + "=" * 80)
+        print("ABLATIONS (logs_ablation/)")
+        print(f"{'sweep':<25} {'value':<10} {'seed':<5} {'step / target':<24} "
+              f"{'last ret':>9} {'roll20':>9} {'ETA':>9} {'last modified':<20} status")
+        print("-" * 130)
+        total_abl_eta = 0.0
+        for p in abl_csvs:
+            sweep_name = p.parts[-3]
+            value_label = p.parts[-2]
+            seed = int(p.stem.replace("seed", ""))
+            try:
+                df = pd.read_csv(p)
+            except pd.errors.EmptyDataError:
+                print(f"{sweep_name:<25} {value_label:<10} {seed:<5} (empty CSV)")
+                continue
+            if df.empty:
+                continue
+            target = ABL_TARGET.get(sweep_name)
+            last_step = int(df["step"].iloc[-1])
+            last_ret = float(df["episode_return"].iloc[-1])
+            roll20 = float(df["episode_return"].tail(20).mean())
+            mtime = p.stat().st_mtime
+            if target is None:
+                sp = f"{last_step:>10,}"
+                status = "?"
+                pct = None
+            else:
+                sp = f"{last_step:>10,} / {target:>10,}"
+                pct = last_step / target
+                status = "DONE" if pct >= 0.99 else f"{pct*100:.0f}%"
+
+            eta_s = None
+            if target is not None and pct is not None and pct < 0.99 and len(df) >= 5:
+                tail = df.tail(min(20, len(df)))
+                step_delta = float(tail["step"].iloc[-1]) - float(tail["step"].iloc[0])
+                wall_delta = float(tail["wall_clock_s"].iloc[-1]) - float(tail["wall_clock_s"].iloc[0])
+                if wall_delta > 0:
+                    rate = step_delta / wall_delta
+                    eta_s = (target - last_step) / max(rate, 1e-6)
+                    total_abl_eta += eta_s
+
+            if eta_s is None:
+                eta_str = "--"
+            else:
+                mins = int(eta_s // 60)
+                secs = int(eta_s % 60)
+                eta_str = f"{mins:>3d}m{secs:02d}s"
+
+            active = (datetime.now().timestamp() - mtime) < 60
+            marker = "<- ACTIVE" if active else ""
+            print(f"{sweep_name:<25} {value_label:<10} {seed:<5} {sp:<24} "
+                  f"{last_ret:>9.1f} {roll20:>9.1f} {eta_str:>9} "
+                  f"{fmt_time(mtime):<20} {status} {marker}")
+
+        if total_abl_eta > 0:
+            h = int(total_abl_eta // 3600)
+            m = int((total_abl_eta % 3600) // 60)
+            s = int(total_abl_eta % 60)
+            print(f"Estimated time to finish in-progress ablations:      {h}h{m:02d}m{s:02d}s")
+    else:
+        print("\nNo ablation CSVs yet (logs_ablation/ is empty or missing).")
 
 
 if __name__ == "__main__":
