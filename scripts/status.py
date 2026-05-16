@@ -138,11 +138,34 @@ def main() -> None:
 
     # ----------------------------------------------------------------- ablations
     abl_dir = ROOT / "logs_ablation"
-    abl_csvs = sorted(
-        abl_dir.glob("*/*/seed*.csv"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    ) if abl_dir.exists() else []
+    # Completed runs land at logs_ablation/<sweep>/<value>/seed<N>.csv.
+    # In-progress runs are still being written under the _tmp subtree:
+    #   logs_ablation/<sweep>/<value>/_tmp/<algo>/<env>/seed<N>.csv
+    abl_done = list(abl_dir.glob("*/*/seed*.csv")) if abl_dir.exists() else []
+    abl_inprogress = list(abl_dir.glob("*/*/_tmp/*/*/seed*.csv")) if abl_dir.exists() else []
+
+    # Build a unified list of (sweep, value, seed, csv_path), preferring done over in-progress.
+    seen_keys: set = set()
+    unified: list = []
+    for p in sorted(abl_done, key=lambda x: x.stat().st_mtime, reverse=True):
+        sweep_name = p.parts[-3]
+        value_label = p.parts[-2]
+        seed = int(p.stem.replace("seed", ""))
+        key = (sweep_name, value_label, seed)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        unified.append((sweep_name, value_label, seed, p))
+    for p in sorted(abl_inprogress, key=lambda x: x.stat().st_mtime, reverse=True):
+        sweep_name = p.parts[-6]
+        value_label = p.parts[-5]
+        seed = int(p.stem.replace("seed", ""))
+        key = (sweep_name, value_label, seed)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        unified.append((sweep_name, value_label, seed, p))
+    abl_csvs = unified
 
     if abl_csvs:
         print("\n" + "=" * 80)
@@ -151,10 +174,7 @@ def main() -> None:
               f"{'last ret':>9} {'roll20':>9} {'ETA':>9} {'last modified':<20} status")
         print("-" * 130)
         total_abl_eta = 0.0
-        for p in abl_csvs:
-            sweep_name = p.parts[-3]
-            value_label = p.parts[-2]
-            seed = int(p.stem.replace("seed", ""))
+        for sweep_name, value_label, seed, p in abl_csvs:
             try:
                 df = pd.read_csv(p)
             except pd.errors.EmptyDataError:
@@ -198,6 +218,35 @@ def main() -> None:
             print(f"{sweep_name:<25} {value_label:<10} {seed:<5} {sp:<24} "
                   f"{last_ret:>9.1f} {roll20:>9.1f} {eta_str:>9} "
                   f"{fmt_time(mtime):<20} {status} {marker}")
+
+        # Also estimate time for queued ablation runs (in SWEEPS but no CSV yet,
+        # neither completed nor in-progress).
+        missing_abl_steps = 0
+        for sweep_name, spec in SWEEPS.items():
+            for value_label, _ in spec["values"]:
+                for s in (0, 1, 2):
+                    if (sweep_name, value_label, s) not in seen_keys:
+                        missing_abl_steps += spec["total_steps"]
+
+        # Use rate from the most recently-active ablation row if any.
+        if missing_abl_steps > 0:
+            active_paths = [
+                p for (_, _, _, p) in abl_csvs
+                if (datetime.now().timestamp() - p.stat().st_mtime) < 60
+            ]
+            if active_paths:
+                ap = active_paths[0]
+                adf = pd.read_csv(ap)
+                tail = adf.tail(min(20, len(adf)))
+                step_delta = float(tail["step"].iloc[-1]) - float(tail["step"].iloc[0])
+                wall_delta = float(tail["wall_clock_s"].iloc[-1]) - float(tail["wall_clock_s"].iloc[0])
+                rate = step_delta / wall_delta if wall_delta > 0 else 60.0
+                queued_s = missing_abl_steps / max(rate, 1e-6)
+                qh = int(queued_s // 3600)
+                qm = int((queued_s % 3600) // 60)
+                qs = int(queued_s % 60)
+                print(f"Estimated time for queued (unstarted) ablations:     "
+                      f"{qh}h{qm:02d}m{qs:02d}s")
 
         if total_abl_eta > 0:
             h = int(total_abl_eta // 3600)
