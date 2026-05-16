@@ -14,17 +14,31 @@
 % Fonts
 % ====================
 
-\newfontfamily\Raleway[Ligatures=TeX]{Raleway}
-\newfontfamily\Lato[Ligatures=TeX]{Lato}
+% Fallback to Latin Modern Sans (always available with MiKTeX / TeX Live)
+% so the theme works without installing Raleway and Lato.
+\IfFontExistsTF{Raleway}{%
+  \newfontfamily\Raleway[Ligatures=TeX]{Raleway}%
+}{%
+  \newfontfamily\Raleway[Ligatures=TeX]{Latin Modern Sans}%
+}
+\IfFontExistsTF{Lato}{%
+  \newfontfamily\Lato[Ligatures=TeX]{Lato}%
+}{%
+  \newfontfamily\Lato[Ligatures=TeX]{Latin Modern Sans}%
+}
 
 \usefonttheme{professionalfonts}
 
-\setsansfont{Lato}[
-  UprightFont=*-Light,
-  ItalicFont=*-LightItalic,
-  BoldFont=*-Regular,
-  BoldItalicFont=*-Italic
-]
+\IfFontExistsTF{Lato}{%
+  \setsansfont{Lato}[
+    UprightFont=*-Light,
+    ItalicFont=*-LightItalic,
+    BoldFont=*-Regular,
+    BoldItalicFont=*-Italic
+  ]%
+}{%
+  \setsansfont{Latin Modern Sans}%
+}
 
 \setbeamerfont{headline}{family=\Raleway}
 \setbeamerfont{headline title}{size=\Huge,series=\bfseries}

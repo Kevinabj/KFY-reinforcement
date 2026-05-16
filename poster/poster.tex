@@ -1,10 +1,8 @@
+% !TEX program = lualatex
+% !TEX bibtex   = bibtex
 % A Comparative Study of Deep RL Algorithms: DQN, PPO, SAC, TD3
 % EE-568 Reinforcement Learning, EPFL, Spring 2026
 % Kevin Abou Jaoude, Youssef Dib, Fuad Khuri
-%
-% Gemini theme, A1 portrait.
-% Build with: latexmk -pdflatex='lualatex -interaction nonstopmode' -pdf poster.tex
-% (or `make`)
 
 \documentclass[final]{beamer}
 
@@ -16,41 +14,168 @@
 \usepackage{graphicx}
 \usepackage{anyfontsize}
 \usepackage{amssymb}
-\usepackage[ruled,vlined]{algorithm2e,setspace}
 \usepackage{pifont}
 \usepackage{booktabs}
+\usepackage{array}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, calc, decorations.pathmorphing, backgrounds, positioning, shadows, shadows.blur}
 \input{packages}
 \input{macros}
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
 \usepackage{xcolor}
 \usepackage{etoolbox}
-\AtBeginEnvironment{algorithm}{\setstretch{1.1}}
 
-% Two-column layout: 2*colwidth + 3*sepwidth = paperwidth
 \newlength{\sepwidth}
 \newlength{\colwidth}
-\setlength{\sepwidth}{0.025\paperwidth}
-\setlength{\colwidth}{0.46\paperwidth}
+\setlength{\sepwidth}{0.022\paperwidth}
+\setlength{\colwidth}{0.467\paperwidth}
 \newcommand{\separatorcolumn}{\begin{column}{\sepwidth}\end{column}}
 
-\setlength{\jot}{12pt}
+\setlength{\jot}{10pt}
 
-% Accent colour for in-text highlights (uses theme red where possible).
+% ====================
+% Color palette
+% ====================
 \definecolor{epflred}{RGB}{200,16,46}
+\definecolor{softgrey}{RGB}{96,96,96}
+\definecolor{cartcol}{RGB}{120,160,210}
+\definecolor{pendcol}{RGB}{220,120,90}
+\definecolor{mccgrass}{RGB}{120,170,120}
+
+% Algorithm identity colors (matching the matplotlib tab10 hues used in the plots)
+\definecolor{dqncol}{RGB}{31,119,180}    % blue
+\definecolor{ppocol}{RGB}{255,127,14}    % orange
+\definecolor{saccol}{RGB}{44,160,44}     % green
+\definecolor{td3col}{RGB}{148,103,189}   % purple
+
 \newcommand{\hl}[1]{\textcolor{epflred}{\textbf{#1}}}
+\newcommand{\algotag}[2][epflred]{\textcolor{#1}{\textbf{#2}}}
+
+% ====================
+% Algorithm card: a colored left rule + body
+% ====================
+\newcommand{\algocard}[3]{%
+  \begin{minipage}[t]{0.49\colwidth}
+    \begin{tikzpicture}[baseline=(card.north)]
+      \node[anchor=north west, inner sep=0.4em, minimum width=0.49\colwidth,
+            text width=0.47\colwidth, draw=#1, line width=2pt,
+            rounded corners=0.2em, fill=#1!5] (card) {%
+        \begin{minipage}{0.44\colwidth}
+          \textcolor{#1}{\textbf{\large #2}}\\[0.2em]
+          #3
+        \end{minipage}};
+    \end{tikzpicture}%
+  \end{minipage}%
+}
+
+% ====================
+% Key-number badge (a colored disc with a big number and a one-line caption)
+% ====================
+\newcommand{\keynum}[3]{%
+  \begin{tikzpicture}
+    \node[circle, draw=#1, fill=#1!10, line width=2pt,
+          minimum size=4.2cm, align=center, font=\bfseries] (n) {%
+        \textcolor{#1}{\fontsize{34}{38}\selectfont #2}};
+    \node[below=0.15cm of n, align=center, text width=4.6cm,
+          font=\small] {#3};
+  \end{tikzpicture}}
+
+% ====================
+% Environment cartoons (TikZ) -- BIGGER and more detailed
+% ====================
+
+\newcommand{\cartpoleTikZ}{%
+\begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
+  % ground with hatching
+  \draw[thick] (-1.2,0) -- (1.2,0);
+  \foreach \x in {-1.1,-0.85,...,1.15} \draw (\x,0) -- (\x-0.08,-0.12);
+  % cart with subtle gradient look
+  \draw[thick, fill=cartcol!50, rounded corners=2pt] (-0.55,0.05) rectangle (0.55,0.55);
+  \draw[fill=black] (-0.35,0.05) circle (0.10);
+  \draw[fill=black] (0.35,0.05) circle (0.10);
+  \draw[fill=cartcol!90, rounded corners=2pt] (-0.45,0.55) rectangle (0.45,0.6);
+  % pole
+  \draw[thick, line width=3pt, epflred!80] (0,0.6) -- (0.55,1.85);
+  \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.55,1.85) circle (0.13);
+  % action arrows with labels
+  \draw[->, very thick, epflred] (-0.75,0.30) -- (-1.15,0.30);
+  \draw[->, very thick, epflred] (0.75,0.30) -- (1.15,0.30);
+  \node[epflred, anchor=south] at (0,1.95) {\textbf{balance}};
+\end{tikzpicture}}
+
+\newcommand{\acrobotTikZ}{%
+\begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
+  % ceiling
+  \draw[thick] (-1.0,1.85) -- (1.0,1.85);
+  \foreach \x in {-0.9,-0.5,-0.1,0.3,0.7} \draw (\x,1.85) -- (\x-0.12,2.05);
+  % pivot
+  \draw[fill=black] (0,1.85) circle (0.08);
+  % first link (tilted)
+  \draw[thick, line width=3pt] (0,1.85) -- (0.55,1.05);
+  \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.55,1.05) circle (0.09);
+  % second link
+  \draw[thick, line width=3pt] (0.55,1.05) -- (0.15,0.20);
+  \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.15,0.20) circle (0.13);
+  % target height
+  \draw[dashed, epflred, thick] (-1.05,0.50) -- (1.05,0.50);
+  \node[epflred, anchor=east, font=\scriptsize\bfseries] at (1.05,0.65) {goal h};
+  % swing-up arrow
+  \draw[->, thick, epflred, dashed] (0.7,0.4) to[bend left=25] (0.3,1.4);
+\end{tikzpicture}}
+
+\newcommand{\pendulumTikZ}{%
+\begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
+  % pivot
+  \draw[thick] (-0.5,1.75) -- (0.5,1.75);
+  \foreach \x in {-0.4,-0.1,0.2,0.5} \draw (\x,1.75) -- (\x-0.08,1.92);
+  \draw[fill=black] (0,1.75) circle (0.08);
+  % rod
+  \draw[thick, line width=3pt] (0,1.75) -- (0.70,0.65);
+  \draw[fill=pendcol, draw=pendcol!70, line width=1pt] (0.70,0.65) circle (0.22);
+  % torque arrow
+  \draw[->, very thick, epflred] (-0.45,1.30) arc[start angle=170, end angle=80, radius=0.65];
+  \node[epflred, anchor=south west, font=\scriptsize\bfseries] at (0.1,1.95) {torque $\tau$};
+\end{tikzpicture}}
+
+\newcommand{\mccTikZ}{%
+\begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
+  % U-hill (filled)
+  \draw[thick, fill=mccgrass!30] plot[smooth, samples=60, domain=-1.20:1.20]
+       ({\x},{0.55*\x*\x + 0.05}) -- (1.20,-0.05) -- (-1.20,-0.05) -- cycle;
+  % faint grass
+  \foreach \x in {-1.1,-0.8,...,1.1} {%
+    \pgfmathsetmacro{\yy}{0.55*\x*\x + 0.05}
+    \draw[mccgrass!70, thick] (\x,\yy) -- (\x,\yy+0.07);}
+  % car
+  \draw[thick, fill=cartcol!60, rounded corners=2pt] (-0.30,0.10) rectangle (0.15,0.40);
+  \draw[fill=black] (-0.22,0.10) circle (0.07);
+  \draw[fill=black] (0.08,0.10) circle (0.07);
+  % flag
+  \draw[thick] (1.05,0.65) -- (1.05,1.25);
+  \fill[epflred] (1.05,1.25) -- (1.05,0.95) -- (0.72,1.10) -- cycle;
+  \node[epflred, anchor=west, font=\small\bfseries] at (0.30,1.40) {+100};
+  % goal arrow
+  \draw[->, very thick, epflred, dashed] (-0.05,0.45) to[bend left=20] (0.95,1.15);
+\end{tikzpicture}}
 
 % ====================
 % Title block
 % ====================
 
-\title{A Comparative Study of Deep RL Algorithms: \\ DQN, PPO, SAC, TD3}
+\title{A Comparative Study of Deep RL Algorithms: DQN, PPO, SAC, TD3}
 
-\author{Kevin Abou Jaoude\textsuperscript{1}, Youssef Dib\textsuperscript{1}, Fuad Khuri\textsuperscript{1}}
+\author[K. Abou Jaoude, Y. Dib, F. Khuri]{Kevin Abou Jaoude \quad Youssef Dib \quad Fuad Khuri}
 
-\institute{\textsuperscript{1}EE-568 Reinforcement Learning, EPFL, Spring 2026}
+\institute[EPFL EE-568, Spring 2026]{EE-568 Reinforcement Learning \, $\cdot$ \, EPFL \, $\cdot$ \, Spring 2026}
 
 \logoright{\includegraphics[height=7cm]{logos/epfl.png}}
+
+\footercontent{
+  EE-568 Reinforcement Learning \, $\cdot$ \, Applied Project 1 \, $\cdot$ \,
+  Kevin Abou Jaoude, Youssef Dib, Fuad Khuri \, $\cdot$ \, EPFL, Spring 2026
+}
 
 % ====================
 % Document
@@ -66,65 +191,122 @@
 % ============================================================
 \begin{column}{\colwidth}
 
-    % ---------- Introduction ----------
-    \begin{block}{1. Introduction}
-        We re-implemented four canonical deep RL algorithms from scratch in PyTorch and benchmarked them on four classic-control Gymnasium environments with three seeds each. The algorithms span the two main axes of the deep RL taxonomy:
-        \begin{itemize}
-            \item value-based vs.\ policy-based,
-            \item on-policy vs.\ off-policy.
-        \end{itemize}
-        We report bootstrap 95\% confidence intervals over seeds, pre-register four ablations, and document the implementation details that distinguish a paper recipe from a working agent.
+    % ---------- Environments with bigger TikZ cartoons ----------
+    \begin{block}{1. Four classic-control environments}
+        \centering
+        \begin{minipage}[t]{0.235\colwidth}\centering
+            \cartpoleTikZ \\[0.2em]
+            \textbf{\algotag[cartcol!80!black]{CartPole-v1}} \\
+            \scriptsize Discrete(2) \, $\cdot$ \, dense $+1$/step \\
+            100k env steps
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.235\colwidth}\centering
+            \acrobotTikZ \\[0.2em]
+            \textbf{\algotag[cartcol!80!black]{Acrobot-v1}} \\
+            \scriptsize Discrete(3) \, $\cdot$ \, dense $-1$/step \\
+            200k env steps
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.235\colwidth}\centering
+            \pendulumTikZ \\[0.2em]
+            \textbf{\algotag[pendcol!80!black]{Pendulum-v1}} \\
+            \scriptsize Box$[-2,2]$ \, $\cdot$ \, dense \\
+            200k env steps
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.235\colwidth}\centering
+            \mccTikZ \\[0.2em]
+            \textbf{\algotag[mccgrass!60!black]{MCC-v0}} \\
+            \scriptsize Box$[-1,1]$ \, $\cdot$ \, \hl{sparse} \\
+            300k env steps
+        \end{minipage}
     \end{block}
 
-    % ---------- Algorithms ----------
-    \begin{block}{2. Algorithms}
+    % ---------- Setup and taxonomy ----------
+    \begin{block}{2. Setup and taxonomy}
+        We re-implement four canonical deep RL algorithms from scratch in PyTorch (no \texttt{stable-baselines3}) and benchmark them with 3 seeds each, 95\% bootstrap CIs over seeds, and four pre-registered ablations.
 
-        \textbf{\hl{DQN}} \cite{mnih2013playing} (value-based, off-policy, discrete):
-        \[
-        \mathcal{L}_{\text{DQN}} = \mathbb{E}\!\left[\ell_{\text{Huber}}\!\Big(Q_\theta(s,a) - \big(r + \gamma\,(1{-}d)\,\textstyle\max_{a'} Q_{\bar{\theta}}(s',a')\big)\Big)\right].
-        \]
-        $\varepsilon$-greedy exploration, target network synced every $\tau_{\text{sync}}$ steps, Huber loss for robustness.
-
-        \vspace{0.6em}
-        \textbf{\hl{PPO}} \cite{schulman2017proximal} (policy-based, on-policy, discrete + continuous):
-        \[
-        \mathcal{L}_{\text{PPO}} = -\,\mathbb{E}\!\left[\min\!\big(r_t(\theta)\hat{A}_t,\, \mathrm{clip}(r_t(\theta), 1{-}\epsilon, 1{+}\epsilon)\hat{A}_t\big)\right].
-        \]
-        Clipped surrogate as a first-order trust-region; GAE advantages with $(\gamma,\lambda)$.
-
-        \vspace{0.6em}
-        \textbf{\hl{SAC}} \cite{haarnoja2018soft} (policy-based, off-policy, continuous):
-        \[
-        J_{\text{SAC}}(\pi) = \mathbb{E}_\pi\!\left[\textstyle\sum_t \gamma^t\big(r(s_t,a_t) + \alpha\,\mathcal{H}[\pi(\cdot{\mid}s_t)]\big)\right].
-        \]
-        Squashed-Gaussian actor with tanh-Jacobian log-prob correction; auto-tuned $\alpha$ via $\log\alpha$.
-
-        \vspace{0.6em}
-        \textbf{\hl{TD3}} \cite{fujimoto2018addressing} (policy-based, off-policy, continuous):
-        \[
-        y = r + \gamma\,(1{-}d)\,\textstyle\min_{i\in\{1,2\}}\, Q_{\bar{\phi}_i}\!\big(s',\, \mathrm{clip}(\pi_{\bar{\theta}}(s') + \tilde{\epsilon},\, a_{\min}, a_{\max})\big).
-        \]
-        Twin Q-targets, target policy smoothing ($\tilde{\sigma}{=}0.2$), delayed actor update every 2 critic steps.
-
-    \end{block}
-
-    % ---------- Environments ----------
-    \begin{block}{3. Environments and protocol}
+        \vspace{0.3em}
+        \begin{center}
         \small
-        \begin{tabular}{@{}p{0.27\colwidth} p{0.13\colwidth} p{0.43\colwidth}@{}}
+        \renewcommand{\arraystretch}{1.2}
+        \begin{tabular}{@{}l|cc@{}}
             \toprule
-            \textbf{Env} & \textbf{Action} & \textbf{Reward / budget} \\
+                                  & \textbf{on-policy} & \textbf{off-policy} \\
             \midrule
-            CartPole-v1               & Discrete(2)  & dense $+1$/step, 100k steps \\
-            Acrobot-v1                & Discrete(3)  & dense $-1$/step, 200k steps \\
-            Pendulum-v1               & Box$[-2,2]$  & dense quadratic, 200k steps \\
-            MountainCarContinuous-v0  & Box$[-1,1]$  & \hl{sparse $+100$ at goal}, 300k steps \\
+            \textbf{value-based}  & (none)            & \algotag[dqncol]{DQN} \\
+            \textbf{policy-based} & \algotag[ppocol]{PPO} & \algotag[saccol]{SAC}, \algotag[td3col]{TD3} \\
             \bottomrule
         \end{tabular}
+        \end{center}
+
+        \textbf{Networks.} $(64,64)$ MLPs for DQN, PPO; $(256,256)$ for SAC, TD3 (canonical paper widths). \quad \textbf{Hardware.} RTX 3070 + EPFL gnoto V100.
+    \end{block}
+
+    % ---------- Algorithms (color-coded cards) ----------
+    \begin{block}{3. Algorithms}
+        \small
+        \algocard{dqncol}{DQN \cite{mnih2013playing}}{%
+          value-based, off-policy, discrete:
+          \[
+          \mathcal{L} = \mathbb{E}\!\left[\ell_{\text{Hub}}\!\big(Q_\theta - r - \gamma(1{-}d)\textstyle\max_{a'}Q_{\bar{\theta}}\big)\right]
+          \]
+          $\varepsilon$-greedy, target sync every $\tau$ steps, Huber loss.}\hfill
+        \algocard{ppocol}{PPO \cite{schulman2017proximal}}{%
+          policy-based, on-policy:
+          \[
+          \mathcal{L} = -\mathbb{E}\!\left[\min\!\big(r_t\hat{A}_t,\, \mathrm{clip}(r_t, 1{\pm}\epsilon)\hat{A}_t\big)\right]
+          \]
+          GAE advantages, clipped surrogate as a soft trust region.}
 
         \vspace{0.6em}
-        \textbf{Protocol.} 3 seeds $\{0,1,2\}$ per (algo, env). 95\% bootstrap CI over seeds at every step bin. Networks: $(64,64)$ for discrete (DQN, PPO), $(256,256)$ for continuous (SAC, TD3), matching canonical papers. Hardware: RTX 3070 Laptop and EPFL gnoto V100. Code: PyTorch from scratch, no \texttt{stable-baselines3}.
+
+        \algocard{saccol}{SAC \cite{haarnoja2018soft}}{%
+          off-policy, max-entropy:
+          \[
+          J = \mathbb{E}\!\left[\textstyle\sum_t \gamma^t\big(r_t + \alpha\,\mathcal{H}[\pi(\cdot|s_t)]\big)\right]
+          \]
+          Squashed-Gaussian actor, auto $\alpha$ via $\log\alpha$, twin Q.}\hfill
+        \algocard{td3col}{TD3 \cite{fujimoto2018addressing}}{%
+          off-policy, deterministic:
+          \[
+          y = r + \gamma(1{-}d)\textstyle\min_{i}Q_{\bar{\phi}_i}\!\big(s', \pi_{\bar{\theta}}{+}\tilde{\epsilon}\big)
+          \]
+          Twin critics, target smoothing $\tilde{\sigma}{=}0.2$, delayed actor.}
     \end{block}
+
+    % ---------- Implementation diary ----------
+    \begin{block}{4. Implementation details that mattered}
+        \small
+        \begin{itemize}
+            \itemsep0.15em
+            \item \algotag[dqncol]{DQN}: target-sync sweep on CartPole gives a \hl{U-shape} ($\tau\in\{100, 1000, 5000\}$). The canonical $\tau{=}1000$ sits at the edge of stability, which explains the seed-bimodality.
+            \item \algotag[ppocol]{PPO}: at Pendulum truncation we fold $\gamma V(s_{t{+}1})$ into the reward so GAE accounts for the value of the truncated state; raw \texttt{done} flags bias returns by $\sim$30.
+            \item \algotag[saccol]{SAC}: the tanh-Jacobian log-prob correction $-\sum_i \log(1-\tanh^2 u_i)$ is mandatory; without it the entropy term is silently wrong and training never moves off the warmup floor.
+            \item \algotag[td3col]{TD3}: the smoothed target action needs \emph{two} clips, on the noise ($\pm 0.5$) and on the action range. Skipping the outer clip sticks the actor on the boundary.
+            \item \textbf{All four}: bootstrap mask uses \texttt{terminated} only, not \texttt{terminated\,or\,truncated}.
+        \end{itemize}
+    \end{block}
+
+    % ---------- Bar charts ----------
+    \begin{block}{5. Cost, sample efficiency, model size}
+        \vspace{-0.3em}
+        \begin{minipage}[t]{0.32\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/bars/wall_clock.pdf}\\
+            \scriptsize \textbf{Compute}: SAC $>$ TD3 $>$ PPO $>$ DQN.
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.32\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/bars/sample_efficiency.pdf}\\
+            \scriptsize \textbf{Sample efficiency} (steps to threshold).
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.32\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/bars/param_count.pdf}\\
+            \scriptsize \textbf{Actor params}, $(64,64)$ vs $(256,256)$.
+        \end{minipage}
+    \end{block}
+
+    \vfill
 
 \end{column}
 
@@ -135,66 +317,107 @@
 % ============================================================
 \begin{column}{\colwidth}
 
-    % ---------- Main results ----------
-    \begin{block}{4. Main results}
-        \begin{figure}
-            \centering
-            \includegraphics[width=\colwidth]{../plots/main_grid.pdf}
-        \end{figure}
-        \vspace{-0.6em}
-        \small
-        \begin{center}
-        \resizebox{\colwidth}{!}{%
-        \input{../plots/scoreboard.tex}%
-        }
-        \end{center}
-        \normalsize
-        \vspace{-0.3em}
-        \begin{itemize}
-            \item \textbf{CartPole.} \hl{DQN bimodal} (1/3 seeds solve); PPO reliable (380, CI [350, 402]).
-            \item \textbf{Acrobot.} DQN solves in $\sim$30k steps; PPO slower, one seed collapses.
-            \item \textbf{Pendulum.} \hl{SAC and TD3 are ${\sim}13\times$ more sample-efficient than PPO} (SAC reaches threshold in 7.4k env steps vs PPO 95k).
-            \item \textbf{MountainCarContinuous.} \hl{Only PPO ever discovers the +100 goal} (1/3 seeds). SAC ($-0.8$) and TD3 ($-9.1$) plateau at a lazy local optimum.
-        \end{itemize}
+    % ---------- Key numbers at a glance ----------
+    \begin{block}{Key numbers at a glance}
+        \centering
+        \begin{tikzpicture}
+            \node at (0,0) {\keynum{epflred}{$13\times$}{SAC sample-efficiency over PPO on Pendulum}};
+            \node at (10,0) {\keynum{epflred}{$0/9$}{Goal discoveries by SAC across $\alpha$-sweep seeds on MCC}};
+        \end{tikzpicture}
     \end{block}
 
-    % ---------- Ablations / headline finding ----------
-    \begin{block}{5. Headline finding: off-policy continuous methods have a structural exploration gap on sparse reward}
-        Two pre-registered ablations on MountainCarContinuous test whether the available exploration knobs rescue SAC or TD3. \hl{Neither does.}
-
-        \vspace{0.3em}
-        \begin{columns}[T]
-            \column{0.48\colwidth}
-            \centering
-            \includegraphics[width=0.48\colwidth]{../plots/ablations/sac_alpha.pdf}\\
-            \small \textbf{SAC temperature sweep.} Auto, 0.05, 0.20. \\ Three failure modes, \hl{0 goal discoveries / 9 seeds}.
-            \column{0.48\colwidth}
-            \centering
-            \includegraphics[width=0.48\colwidth]{../plots/ablations/td3_exploration_noise.pdf}\\
-            \small \textbf{TD3 noise sweep.} $\sigma \in \{0.1, 0.3, 0.5\}$. \\ \hl{More noise is worse, not better.}
-        \end{columns}
-
-        \vspace{0.6em}
-        \textbf{Mechanism.} Both off-policy mechanisms (entropy regularization, additive Gaussian noise) drive uniform coverage of the \emph{local} action set, not directed exploration in state space. PPO's on-policy rollouts occasionally produce a long correlated action sequence that crosses the hill; off-policy replay samples are decorrelated and cannot.
+    % ---------- Main results ----------
+    \begin{block}{A. Learning curves: one figure per environment}
+        \vspace{-0.3em}
+        \centering
+        \begin{minipage}[t]{0.49\colwidth}
+            \includegraphics[width=\linewidth]{../plots/per_env/CartPole-v1.pdf}\\
+            \small \textbf{CartPole.} \hl{DQN bimodal} (1/3 solve); PPO reliable, 380, CI [350, 402].
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.49\colwidth}
+            \includegraphics[width=\linewidth]{../plots/per_env/Acrobot-v1.pdf}\\
+            \small \textbf{Acrobot.} DQN solves cleanly in $\sim$30k steps; one PPO seed collapses.
+        \end{minipage}
 
         \vspace{0.4em}
-        \textbf{Other ablations confirm the diary.} DQN target-sync sweep is a U-shape ($\tau\in\{100, 1000, 5000\}$), explaining CartPole bimodality: $\tau{=}1000$ sits at the edge of stability. PPO clip ratio: $0.1$ is too conservative; $0.2$ and $0.3$ are tied.
+
+        \begin{minipage}[t]{0.49\colwidth}
+            \includegraphics[width=\linewidth]{../plots/per_env/Pendulum-v1.pdf}\\
+            \small \textbf{Pendulum.} \hl{SAC and TD3: $\sim 13\times$ more sample-efficient than PPO} (SAC threshold at 7.4k vs PPO 95k).
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.49\colwidth}
+            \includegraphics[width=\linewidth]{../plots/per_env/MountainCarContinuous-v0.pdf}\\
+            \small \textbf{MCC, sparse.} \hl{Only PPO ever finds the goal} (1/3 seeds, $-2.5$); SAC $-0.8$, TD3 $-9.1$.
+        \end{minipage}
     \end{block}
 
-    % ---------- Takeaways ----------
-    \begin{block}{6. Answers to the brief's four questions}
+    % ---------- All four ablations consolidated into ONE alert block ----------
+    \begin{alertblock}{B. Pre-registered ablations: turning the canonical knobs}
+        Four pre-registered sweeps, one per algorithm, 3 seeds each.\\
+        \textbf{Headline (MCC, sparse reward):} \hl{turning the off-policy exploration knobs (SAC $\alpha$, TD3 $\sigma$) does not rescue them.}
+
+        \vspace{0.4em}
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/sac_alpha.pdf}\\
+            \small \textbf{\algotag[saccol]{SAC} $\alpha$ sweep on MCC.} \\
+            Auto, 0.05, 0.20: three failure modes, \hl{0 goal discoveries / 9 seeds}.
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/td3_exploration_noise.pdf}\\
+            \small \textbf{\algotag[td3col]{TD3} $\sigma$ sweep on MCC.} \\
+            $\sigma\in\{0.1, 0.3, 0.5\}$: \hl{more noise is worse, not better}.
+        \end{minipage}
+
+        \vspace{0.6em}
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/dqn_target_sync.pdf}\\
+            \small \textbf{\algotag[dqncol]{DQN} target-sync, CartPole.} \\
+            $\tau\in\{100, 1000, 5000\}$: \hl{U-shape}, $\tau{=}1000$ at the edge of stability (explains seed-bimodality).
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/ppo_clip_ratio.pdf}\\
+            \small \textbf{\algotag[ppocol]{PPO} clip ratio, Pendulum.} \\
+            $\epsilon\in\{0.1, 0.2, 0.3\}$: 0.1 too conservative; 0.2 \& 0.3 tied.
+        \end{minipage}
+
+        \vspace{0.6em}
+        \small
+        \textbf{Why off-policy continuous methods fail on MCC.} Entropy regularization (SAC) and additive Gaussian noise (TD3) drive uniform coverage of the \emph{local} action set, not directed exploration in state space. PPO's on-policy rollouts occasionally produce a long correlated action sequence that crosses the hill; off-policy replay samples are decorrelated and cannot.
+    \end{alertblock}
+
+    % ---------- Conclusion as EXAMPLE block ----------
+    \begin{exampleblock}{C. Practical rule of thumb}
         \begin{itemize}
-            \item \textbf{Most expensive per iteration:} SAC (1183 to 2713\,s per 100k steps) $>$ TD3 $>$ PPO $>$ DQN (98 to 120\,s).
-            \item \textbf{Most compact policy:} DQN \& PPO ($\sim$4.6k actor params) vs SAC \& TD3 ($\sim$67k). Caveat: this gap follows our $(64,64)$ vs $(256,256)$ width choice, not the algorithms.
-            \item \textbf{Best on continuous actions:} \hl{no single winner}. SAC/TD3 dominate dense reward (Pendulum); PPO is the only one to solve sparse reward (MCC).
-            \item \textbf{Best off-policy data efficiency:} SAC, by $12.9\times$ over PPO on Pendulum (7.4k vs 95k steps to threshold).
+            \itemsep0.1em
+            \item \textbf{Discrete actions}: \algotag[dqncol]{DQN} wins on Acrobot, bimodal on CartPole; \algotag[ppocol]{PPO} is more reliable.
+            \item \textbf{Dense-reward continuous}: \algotag[saccol]{SAC} and \algotag[td3col]{TD3} dominate, $12.9\times$ over \algotag[ppocol]{PPO} on Pendulum.
+            \item \textbf{Sparse-reward continuous}: \algotag[ppocol]{PPO} is the only one to find the MCC goal; the failure is structural, not a tuning issue.
         \end{itemize}
-    \end{block}
+        \vspace{0.2em}
+        \centering
+        \textbf{\large Pick SAC or TD3 first on continuous control; switch to PPO (or add explicit exploration bonuses) the moment reward becomes sparse.}
+    \end{exampleblock}
 
     % ---------- References ----------
     \begin{block}{References}
+        \small
         \nocite{*}
-        \small{\bibliographystyle{plain}\bibliography{poster}}
+        \bibliographystyle{plain}\bibliography{poster}
+    \end{block}
+
+    % ---------- Project artefacts ----------
+    \begin{block}{Project artefacts}
+        \small
+        \begin{itemize}
+            \itemsep0.1em
+            \item \textbf{Code}: PyTorch, no \texttt{stable-baselines3}. Per-(algo, env) YAML configs under \texttt{configs/}.
+            \item \textbf{Plots}: \texttt{plots/main\_grid.pdf}, per-env curves, seed grids, ablations, and the bar charts shown here.
+            \item \textbf{Numbers}: full scoreboard with bootstrap CIs in \texttt{plots/scoreboard.csv} and \texttt{scoreboard.tex}.
+        \end{itemize}
     \end{block}
 
 \end{column}
