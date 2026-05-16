@@ -219,10 +219,14 @@ def main() -> None:
                   f"{last_ret:>9.1f} {roll20:>9.1f} {eta_str:>9} "
                   f"{fmt_time(mtime):<20} {status} {marker}")
 
-        # Also estimate time for queued ablation runs (in SWEEPS but no CSV yet,
-        # neither completed nor in-progress).
+        # Estimate time for queued runs WITHIN sweeps that are actually
+        # present on this machine. Sweeps with no CSVs (probably being run
+        # elsewhere) are ignored so the projection is local to this host.
+        active_sweeps = {sw for (sw, _, _) in seen_keys}
         missing_abl_steps = 0
         for sweep_name, spec in SWEEPS.items():
+            if sweep_name not in active_sweeps:
+                continue
             for value_label, _ in spec["values"]:
                 for s in (0, 1, 2):
                     if (sweep_name, value_label, s) not in seen_keys:
