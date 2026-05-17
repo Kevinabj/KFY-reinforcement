@@ -19,7 +19,7 @@
 \usepackage{array}
 \usepackage{adjustbox}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, calc, decorations.pathmorphing, backgrounds, positioning, shadows, shadows.blur}
+\usetikzlibrary{shapes.geometric, arrows.meta, calc, decorations.pathmorphing, backgrounds, positioning, shadows, shadows.blur, fit, shapes.misc}
 \input{packages}
 \input{macros}
 \DeclareMathOperator*{\argmax}{arg\,max}
@@ -35,6 +35,12 @@
 
 \setlength{\jot}{10pt}
 
+% ---- Override the Gemini headline title to a smaller size so the title
+%      fits on 1--2 lines and the EPFL logo can be smaller.
+\setbeamerfont{headline title}{size=\huge,series=\bfseries}
+\setbeamerfont{headline author}{size=\Large}
+\setbeamerfont{headline institute}{size=\normalsize}
+
 % ====================
 % Color palette
 % ====================
@@ -44,7 +50,7 @@
 \definecolor{pendcol}{RGB}{220,120,90}
 \definecolor{mccgrass}{RGB}{120,170,120}
 
-% Algorithm identity colors (matching the matplotlib tab10 hues used in the plots)
+% Algorithm identity colors (matching matplotlib tab10)
 \definecolor{dqncol}{RGB}{31,119,180}    % blue
 \definecolor{ppocol}{RGB}{255,127,14}    % orange
 \definecolor{saccol}{RGB}{44,160,44}     % green
@@ -54,7 +60,7 @@
 \newcommand{\algotag}[2][epflred]{\textcolor{#1}{\textbf{#2}}}
 
 % ====================
-% Algorithm card: a colored left rule + body
+% Algorithm card
 % ====================
 \newcommand{\algocard}[3]{%
   \begin{minipage}[t]{0.49\colwidth}
@@ -71,7 +77,7 @@
 }
 
 % ====================
-% Key-number badge (a colored disc with a big number and a one-line caption)
+% Key-number badge
 % ====================
 \newcommand{\keynum}[3]{%
   \begin{tikzpicture}
@@ -83,23 +89,19 @@
   \end{tikzpicture}}
 
 % ====================
-% Environment cartoons (TikZ) -- BIGGER and more detailed
+% Environment cartoons (TikZ)
 % ====================
 
 \newcommand{\cartpoleTikZ}{%
 \begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
-  % ground with hatching
   \draw[thick] (-1.2,0) -- (1.2,0);
   \foreach \x in {-1.1,-0.85,...,1.15} \draw (\x,0) -- (\x-0.08,-0.12);
-  % cart with subtle gradient look
   \draw[thick, fill=cartcol!50, rounded corners=2pt] (-0.55,0.05) rectangle (0.55,0.55);
   \draw[fill=black] (-0.35,0.05) circle (0.10);
   \draw[fill=black] (0.35,0.05) circle (0.10);
   \draw[fill=cartcol!90, rounded corners=2pt] (-0.45,0.55) rectangle (0.45,0.6);
-  % pole
   \draw[thick, line width=3pt, epflred!80] (0,0.6) -- (0.55,1.85);
   \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.55,1.85) circle (0.13);
-  % action arrows with labels
   \draw[->, very thick, epflred] (-0.75,0.30) -- (-1.15,0.30);
   \draw[->, very thick, epflred] (0.75,0.30) -- (1.15,0.30);
   \node[epflred, anchor=south] at (0,1.95) {\textbf{balance}};
@@ -107,57 +109,84 @@
 
 \newcommand{\acrobotTikZ}{%
 \begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
-  % ceiling
   \draw[thick] (-1.0,1.85) -- (1.0,1.85);
   \foreach \x in {-0.9,-0.5,-0.1,0.3,0.7} \draw (\x,1.85) -- (\x-0.12,2.05);
-  % pivot
   \draw[fill=black] (0,1.85) circle (0.08);
-  % first link (tilted)
   \draw[thick, line width=3pt] (0,1.85) -- (0.55,1.05);
   \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.55,1.05) circle (0.09);
-  % second link
   \draw[thick, line width=3pt] (0.55,1.05) -- (0.15,0.20);
   \draw[fill=epflred, draw=epflred!70, line width=1pt] (0.15,0.20) circle (0.13);
-  % target height
   \draw[dashed, epflred, thick] (-1.05,0.50) -- (1.05,0.50);
   \node[epflred, anchor=east, font=\scriptsize\bfseries] at (1.05,0.65) {goal h};
-  % swing-up arrow
   \draw[->, thick, epflred, dashed] (0.7,0.4) to[bend left=25] (0.3,1.4);
 \end{tikzpicture}}
 
 \newcommand{\pendulumTikZ}{%
 \begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
-  % pivot
   \draw[thick] (-0.5,1.75) -- (0.5,1.75);
   \foreach \x in {-0.4,-0.1,0.2,0.5} \draw (\x,1.75) -- (\x-0.08,1.92);
   \draw[fill=black] (0,1.75) circle (0.08);
-  % rod
   \draw[thick, line width=3pt] (0,1.75) -- (0.70,0.65);
   \draw[fill=pendcol, draw=pendcol!70, line width=1pt] (0.70,0.65) circle (0.22);
-  % torque arrow
   \draw[->, very thick, epflred] (-0.45,1.30) arc[start angle=170, end angle=80, radius=0.65];
   \node[epflred, anchor=south west, font=\scriptsize\bfseries] at (0.1,1.95) {torque $\tau$};
 \end{tikzpicture}}
 
 \newcommand{\mccTikZ}{%
 \begin{tikzpicture}[scale=0.95, every node/.style={font=\scriptsize}]
-  % U-hill (filled)
   \draw[thick, fill=mccgrass!30] plot[smooth, samples=60, domain=-1.20:1.20]
        ({\x},{0.55*\x*\x + 0.05}) -- (1.20,-0.05) -- (-1.20,-0.05) -- cycle;
-  % faint grass
   \foreach \x in {-1.1,-0.8,...,1.1} {%
     \pgfmathsetmacro{\yy}{0.55*\x*\x + 0.05}
     \draw[mccgrass!70, thick] (\x,\yy) -- (\x,\yy+0.07);}
-  % car
   \draw[thick, fill=cartcol!60, rounded corners=2pt] (-0.30,0.10) rectangle (0.15,0.40);
   \draw[fill=black] (-0.22,0.10) circle (0.07);
   \draw[fill=black] (0.08,0.10) circle (0.07);
-  % flag
   \draw[thick] (1.05,0.65) -- (1.05,1.25);
   \fill[epflred] (1.05,1.25) -- (1.05,0.95) -- (0.72,1.10) -- cycle;
   \node[epflred, anchor=west, font=\small\bfseries] at (0.30,1.40) {+100};
-  % goal arrow
   \draw[->, very thick, epflred, dashed] (-0.05,0.45) to[bend left=20] (0.95,1.15);
+\end{tikzpicture}}
+
+% ====================
+% Decision tree for "When to use which algorithm"
+% ====================
+\newcommand{\decisionTree}{%
+\begin{tikzpicture}[
+    every node/.style={font=\small, align=center},
+    decision/.style={diamond, draw=epflred, fill=epflred!10, line width=1.5pt, minimum width=6.5cm, aspect=2.5, inner sep=2pt},
+    algo/.style={rectangle, rounded corners=0.3em, draw, line width=1.5pt, minimum width=4.0cm, minimum height=1.3cm, inner sep=4pt, font=\bfseries\large},
+    arrow/.style={->, line width=1.6pt, epflred},
+    edgelabel/.style={font=\small\bfseries, midway, fill=white, inner sep=1pt}
+]
+% Top question
+\node[decision] (q1) at (0,0) {Action space?};
+
+% Discrete branch: DQN + PPO
+\node[algo, fill=dqncol!15, draw=dqncol, text=dqncol, anchor=north]
+   (dqn) at (-7.5,-3.5) {DQN};
+\node[algo, fill=ppocol!15, draw=ppocol, text=ppocol, anchor=north]
+   (ppod) at (-3.5,-3.5) {PPO};
+
+% Right-side question for continuous
+\node[decision, anchor=north] (q2) at (5,-3.5) {Reward sparse?};
+
+\draw[arrow] (q1) -- node[edgelabel, sloped] {discrete} (dqn.north);
+\draw[arrow] (q1) -- node[edgelabel, sloped] {discrete} (ppod.north);
+\draw[arrow] (q1) -- node[edgelabel, sloped, above] {continuous} (q2.north);
+
+% Continuous + dense -> SAC, TD3
+\node[algo, fill=saccol!15, draw=saccol, text=saccol, anchor=north]
+   (sac) at (2.5,-7.3) {SAC};
+\node[algo, fill=td3col!15, draw=td3col, text=td3col, anchor=north]
+   (td3) at (6.5,-7.3) {TD3};
+% Continuous + sparse -> PPO
+\node[algo, fill=ppocol!15, draw=ppocol, text=ppocol, anchor=north]
+   (ppos) at (10.5,-7.3) {PPO};
+
+\draw[arrow] (q2) -- node[edgelabel, sloped] {no (dense)} (sac.north);
+\draw[arrow] (q2) -- node[edgelabel, sloped] {no (dense)} (td3.north);
+\draw[arrow] (q2) -- node[edgelabel, sloped, above] {yes} (ppos.north);
 \end{tikzpicture}}
 
 % ====================
@@ -170,7 +199,7 @@
 
 \institute[EPFL EE-568, Spring 2026]{EE-568 Reinforcement Learning \, $\cdot$ \, EPFL \, $\cdot$ \, Spring 2026}
 
-\logoright{\includegraphics[height=7cm]{logos/epfl.png}}
+\logoright{\includegraphics[height=4.2cm]{logos/epfl.png}}
 
 \footercontent{
   EE-568 Reinforcement Learning \, $\cdot$ \, Applied Project 1 \, $\cdot$ \,
@@ -191,7 +220,7 @@
 % ============================================================
 \begin{column}{\colwidth}
 
-    % ---------- Environments with bigger TikZ cartoons ----------
+    % ---------- Environments ----------
     \begin{block}{1. Four classic-control environments}
         \centering
         \begin{minipage}[t]{0.235\colwidth}\centering
@@ -241,7 +270,7 @@
         \textbf{Networks.} $(64,64)$ MLPs for DQN, PPO; $(256,256)$ for SAC, TD3 (canonical paper widths). \quad \textbf{Hardware.} RTX 3070 + EPFL gnoto V100.
     \end{block}
 
-    % ---------- Algorithms (color-coded cards) ----------
+    % ---------- Algorithms ----------
     \begin{block}{3. Algorithms}
         \small
         \algocard{dqncol}{DQN \cite{mnih2013playing}}{%
@@ -273,7 +302,7 @@
           Twin critics, target smoothing $\tilde{\sigma}{=}0.2$, delayed actor.}
     \end{block}
 
-    % ---------- Implementation diary ----------
+    % ---------- Implementation details ----------
     \begin{block}{4. Implementation details that mattered}
         \small
         \begin{itemize}
@@ -286,24 +315,54 @@
         \end{itemize}
     \end{block}
 
-    % ---------- Bar charts ----------
-    \begin{block}{5. Cost, sample efficiency, model size}
-        \vspace{-0.3em}
-        \begin{minipage}[t]{0.32\colwidth}
+    % ---------- All four ablations consolidated, NOW ON LEFT ----------
+    \begin{alertblock}{5. Pre-registered ablations: turning the canonical knobs}
+        Four pre-registered sweeps, one per algorithm, 3 seeds each. \\
+        \textbf{Headline (MCC, sparse reward):} \hl{turning the off-policy exploration knobs (SAC $\alpha$, TD3 $\sigma$) does not rescue them.}
+
+        \vspace{0.4em}
+        \begin{minipage}[t]{0.46\colwidth}
             \centering
-            \includegraphics[width=\linewidth]{../plots/bars/wall_clock.pdf}\\
-            \scriptsize \textbf{Compute}: SAC $>$ TD3 $>$ PPO $>$ DQN.
+            \includegraphics[width=\linewidth]{../plots/ablations/sac_alpha.pdf}\\
+            \small \textbf{\algotag[saccol]{SAC} $\alpha$ sweep on MCC.} \\
+            Auto, 0.05, 0.20: three failure modes, \hl{0 goals / 9 seeds}.
         \end{minipage}\hfill
-        \begin{minipage}[t]{0.32\colwidth}
+        \begin{minipage}[t]{0.46\colwidth}
             \centering
-            \includegraphics[width=\linewidth]{../plots/bars/sample_efficiency.pdf}\\
-            \scriptsize \textbf{Sample efficiency} (steps to threshold).
-        \end{minipage}\hfill
-        \begin{minipage}[t]{0.32\colwidth}
-            \centering
-            \includegraphics[width=\linewidth]{../plots/bars/param_count.pdf}\\
-            \scriptsize \textbf{Actor params}, $(64,64)$ vs $(256,256)$.
+            \includegraphics[width=\linewidth]{../plots/ablations/td3_exploration_noise.pdf}\\
+            \small \textbf{\algotag[td3col]{TD3} $\sigma$ sweep on MCC.} \\
+            $\sigma\in\{0.1, 0.3, 0.5\}$: \hl{more noise is worse}.
         \end{minipage}
+
+        \vspace{0.6em}
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/dqn_target_sync.pdf}\\
+            \small \textbf{\algotag[dqncol]{DQN} target-sync, CartPole.} \\
+            \hl{U-shape}; $\tau{=}1000$ at the edge of stability.
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.46\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/ablations/ppo_clip_ratio.pdf}\\
+            \small \textbf{\algotag[ppocol]{PPO} clip ratio, Pendulum.} \\
+            $\epsilon{=}0.1$ too conservative; 0.2 \& 0.3 tied.
+        \end{minipage}
+
+        \vspace{0.5em}
+        \small
+        \textbf{Why off-policy continuous methods fail on MCC.} Entropy regularization (SAC) and additive Gaussian noise (TD3) drive uniform coverage of the \emph{local} action set, not directed exploration in state space. PPO's on-policy rollouts occasionally produce a long correlated action sequence that crosses the hill; off-policy replay samples are decorrelated and cannot.
+    \end{alertblock}
+
+    % ---------- Limitations and open questions ----------
+    \begin{block}{6. Limitations \& open questions}
+        \small
+        \begin{itemize}
+            \itemsep0.1em
+            \item \textbf{Seed count.} 3 seeds per (algo, env). More would tighten CIs but cost is super-linear in our compute budget; the 3-seed bootstrap CIs are wide enough to keep our claims honest.
+            \item \textbf{Network widths fixed.} $(64,64)$ for DQN, PPO and $(256,256)$ for SAC, TD3 (canonical paper defaults). The actor-parameter gap is a hyperparameter choice, not an algorithmic property, and we say so when comparing model sizes.
+            \item \textbf{Sparse reward $=$ MCC only.} Generalizing the headline (off-policy exploration gap on sparse reward) needs a second sparse-reward continuous benchmark, for example \texttt{Reacher} with a binary success reward or a sparsified \texttt{Pendulum}.
+            \item \textbf{No exploration-baseline comparison.} Natural next step: RND or NoisyNet on top of SAC/TD3 and re-run the MCC ablation. Does directed exploration close the gap that local entropy/noise cannot?
+        \end{itemize}
     \end{block}
 
     \vfill
@@ -326,7 +385,7 @@
         \end{tikzpicture}
     \end{block}
 
-    % ---------- Main results ----------
+    % ---------- Learning curves ----------
     \begin{block}{A. Learning curves: one figure per environment}
         \vspace{-0.3em}
         \centering
@@ -343,82 +402,64 @@
 
         \begin{minipage}[t]{0.49\colwidth}
             \includegraphics[width=\linewidth]{../plots/per_env/Pendulum-v1.pdf}\\
-            \small \textbf{Pendulum.} \hl{SAC and TD3: $\sim 13\times$ more sample-efficient than PPO} (SAC threshold at 7.4k vs PPO 95k).
+            \small \textbf{Pendulum.} \hl{SAC and TD3: $\sim 13\times$ more sample-efficient than PPO}.
         \end{minipage}\hfill
         \begin{minipage}[t]{0.49\colwidth}
             \includegraphics[width=\linewidth]{../plots/per_env/MountainCarContinuous-v0.pdf}\\
-            \small \textbf{MCC, sparse.} \hl{Only PPO ever finds the goal} (1/3 seeds, $-2.5$); SAC $-0.8$, TD3 $-9.1$.
+            \small \textbf{MCC, sparse.} \hl{Only PPO ever finds the goal} (1/3 seeds, $-2.5$).
         \end{minipage}
     \end{block}
 
-    % ---------- All four ablations consolidated into ONE alert block ----------
-    \begin{alertblock}{B. Pre-registered ablations: turning the canonical knobs}
-        Four pre-registered sweeps, one per algorithm, 3 seeds each.\\
-        \textbf{Headline (MCC, sparse reward):} \hl{turning the off-policy exploration knobs (SAC $\alpha$, TD3 $\sigma$) does not rescue them.}
-
-        \vspace{0.4em}
-        \begin{minipage}[t]{0.46\colwidth}
+    % ---------- Bar charts ----------
+    \begin{block}{B. Cost, sample efficiency, model size}
+        \vspace{-0.3em}
+        \begin{minipage}[t]{0.32\colwidth}
             \centering
-            \includegraphics[width=\linewidth]{../plots/ablations/sac_alpha.pdf}\\
-            \small \textbf{\algotag[saccol]{SAC} $\alpha$ sweep on MCC.} \\
-            Auto, 0.05, 0.20: three failure modes, \hl{0 goal discoveries / 9 seeds}.
+            \includegraphics[width=\linewidth]{../plots/bars/wall_clock.pdf}\\
+            \scriptsize \textbf{Compute}: SAC $>$ TD3 $>$ PPO $>$ DQN.
         \end{minipage}\hfill
-        \begin{minipage}[t]{0.46\colwidth}
+        \begin{minipage}[t]{0.32\colwidth}
             \centering
-            \includegraphics[width=\linewidth]{../plots/ablations/td3_exploration_noise.pdf}\\
-            \small \textbf{\algotag[td3col]{TD3} $\sigma$ sweep on MCC.} \\
-            $\sigma\in\{0.1, 0.3, 0.5\}$: \hl{more noise is worse, not better}.
+            \includegraphics[width=\linewidth]{../plots/bars/sample_efficiency.pdf}\\
+            \scriptsize \textbf{Sample efficiency} (steps to threshold).
+        \end{minipage}\hfill
+        \begin{minipage}[t]{0.32\colwidth}
+            \centering
+            \includegraphics[width=\linewidth]{../plots/bars/param_count.pdf}\\
+            \scriptsize \textbf{Actor params}, $(64,64)$ vs $(256,256)$.
         \end{minipage}
+    \end{block}
+
+    % ---------- Decision diagram + practical rule ----------
+    \begin{exampleblock}{C. When to use which algorithm}
+        \centering
+        \decisionTree
 
         \vspace{0.6em}
-        \begin{minipage}[t]{0.46\colwidth}
-            \centering
-            \includegraphics[width=\linewidth]{../plots/ablations/dqn_target_sync.pdf}\\
-            \small \textbf{\algotag[dqncol]{DQN} target-sync, CartPole.} \\
-            $\tau\in\{100, 1000, 5000\}$: \hl{U-shape}, $\tau{=}1000$ at the edge of stability (explains seed-bimodality).
-        \end{minipage}\hfill
-        \begin{minipage}[t]{0.46\colwidth}
-            \centering
-            \includegraphics[width=\linewidth]{../plots/ablations/ppo_clip_ratio.pdf}\\
-            \small \textbf{\algotag[ppocol]{PPO} clip ratio, Pendulum.} \\
-            $\epsilon\in\{0.1, 0.2, 0.3\}$: 0.1 too conservative; 0.2 \& 0.3 tied.
-        \end{minipage}
-
-        \vspace{0.6em}
-        \small
-        \textbf{Why off-policy continuous methods fail on MCC.} Entropy regularization (SAC) and additive Gaussian noise (TD3) drive uniform coverage of the \emph{local} action set, not directed exploration in state space. PPO's on-policy rollouts occasionally produce a long correlated action sequence that crosses the hill; off-policy replay samples are decorrelated and cannot.
-    \end{alertblock}
-
-    % ---------- Conclusion as EXAMPLE block ----------
-    \begin{exampleblock}{C. Practical rule of thumb}
         \begin{itemize}
             \itemsep0.1em
+            \small
             \item \textbf{Discrete actions}: \algotag[dqncol]{DQN} wins on Acrobot, bimodal on CartPole; \algotag[ppocol]{PPO} is more reliable.
             \item \textbf{Dense-reward continuous}: \algotag[saccol]{SAC} and \algotag[td3col]{TD3} dominate, $12.9\times$ over \algotag[ppocol]{PPO} on Pendulum.
             \item \textbf{Sparse-reward continuous}: \algotag[ppocol]{PPO} is the only one to find the MCC goal; the failure is structural, not a tuning issue.
         \end{itemize}
-        \vspace{0.2em}
         \centering
         \textbf{\large Pick SAC or TD3 first on continuous control; switch to PPO (or add explicit exploration bonuses) the moment reward becomes sparse.}
     \end{exampleblock}
 
-    % ---------- References ----------
-    \begin{block}{References}
+    % ---------- References + artefacts (combined, compact) ----------
+    \begin{block}{References \& project artefacts}
         \small
         \nocite{*}
-        \bibliographystyle{plain}\bibliography{poster}
+        \bibliographystyle{unsrt}\bibliography{poster}
+        \vspace{-0.4em}
+        \textbf{Artefacts:} PyTorch from scratch (no \texttt{stable-baselines3});
+        per-(algo, env) YAML in \texttt{configs/};
+        curves, seed grids, ablations and bar charts under \texttt{plots/};
+        bootstrap-CI scoreboard in \texttt{plots/scoreboard.\{csv,tex\}}.
     \end{block}
 
-    % ---------- Project artefacts ----------
-    \begin{block}{Project artefacts}
-        \small
-        \begin{itemize}
-            \itemsep0.1em
-            \item \textbf{Code}: PyTorch, no \texttt{stable-baselines3}. Per-(algo, env) YAML configs under \texttt{configs/}.
-            \item \textbf{Plots}: \texttt{plots/main\_grid.pdf}, per-env curves, seed grids, ablations, and the bar charts shown here.
-            \item \textbf{Numbers}: full scoreboard with bootstrap CIs in \texttt{plots/scoreboard.csv} and \texttt{scoreboard.tex}.
-        \end{itemize}
-    \end{block}
+    \vfill
 
 \end{column}
 \separatorcolumn

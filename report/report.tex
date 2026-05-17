@@ -1,7 +1,8 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[10pt,a4paper]{article}
 
 % ---------- Packages ----------
-\usepackage[margin=2.5cm]{geometry}
+\usepackage[margin=2.0cm]{geometry}
+\usepackage{subcaption}
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -50,17 +51,9 @@
 % =====================================================
 \section{Introduction}
 
-This project re-implements four canonical deep reinforcement learning (RL) algorithms from scratch in PyTorch and compares them across four Gymnasium classic-control environments. The algorithms span the two main axes of the deep RL taxonomy: value-based versus policy-based, and on-policy versus off-policy. Deep Q-Networks (DQN) \cite{mnih2013playing} is value-based and off-policy; Proximal Policy Optimization (PPO) \cite{schulman2017proximal} is policy-based and on-policy; Soft Actor-Critic (SAC) \cite{haarnoja2018soft} is policy-based and off-policy with maximum-entropy regularization; Twin Delayed DDPG (TD3) \cite{fujimoto2018addressing} is deterministic, policy-based, and off-policy. The four environments are CartPole-v1 and Acrobot-v1 (discrete actions), and Pendulum-v1 and MountainCarContinuous-v0 (continuous actions) \cite{towers2023gymnasium}. We run three random seeds per (algorithm, environment) pair, report bootstrap 95\% confidence intervals over seeds, and accompany every quantitative claim with an entry in a unified scoreboard table.
+We re-implement four canonical deep RL algorithms from scratch in PyTorch and compare them on four Gymnasium classic-control benchmarks. The four span the main taxonomy axes: DQN \cite{mnih2013playing} is value-based off-policy, PPO \cite{schulman2017proximal} is policy-based on-policy, SAC \cite{haarnoja2018soft} is policy-based off-policy with maximum-entropy regularization, and TD3 \cite{fujimoto2018addressing} is deterministic off-policy actor-critic. Environments \cite{towers2023gymnasium}: CartPole-v1 and Acrobot-v1 (discrete), Pendulum-v1 and MountainCarContinuous-v0 (continuous). We run 3 seeds per (algorithm, environment) pair, 4 pre-registered ablations, and report bootstrap 95\% CIs over seeds.
 
-We preview four empirical headlines:
-\begin{enumerate}[leftmargin=*, itemsep=0pt]
-\item On CartPole, DQN is highly seed sensitive (a textbook bimodal failure), whereas PPO is reliably stable.
-\item On Acrobot, the discrete-action picture reverses: DQN solves the task cleanly in roughly 30k steps, while PPO is slower and unstable.
-\item On dense-reward continuous control (Pendulum), SAC and TD3 are roughly an order of magnitude more sample efficient than PPO.
-\item On sparse-reward continuous control (MountainCarContinuous), the off-policy methods fail to escape a lazy local optimum, and only PPO ever discovers the goal. Two independent pre-registered ablations (SAC temperature and TD3 exploration noise) confirm that this failure is structural: turning the off-policy exploration knobs in either direction does not rescue them.
-\end{enumerate}
-
-The brief explicitly asks for honesty about the implementation details that turned out to matter in practice. We therefore devote a full page to an implementation diary that records the hyperparameter sweeps, the subtle bugs, and the design decisions that distinguish a paper recipe from a working implementation.
+Four empirical headlines: \textbf{(1)} on CartPole DQN is bimodal across seeds while PPO is stable; \textbf{(2)} on Acrobot DQN solves cleanly in $\sim$30k steps and PPO is slower and unstable; \textbf{(3)} on dense-reward Pendulum, SAC and TD3 are roughly $13\times$ more sample-efficient than PPO; \textbf{(4)} on sparse-reward MountainCarContinuous, only PPO ever discovers the goal, and two pre-registered ablations confirm the off-policy failure is structural rather than a tuning issue.
 
 
 % =====================================================
@@ -68,17 +61,11 @@ The brief explicitly asks for honesty about the implementation details that turn
 % =====================================================
 \section{Background}
 
-We model each environment as a discrete-time Markov decision process (MDP) $\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, r, \gamma, \rho_0)$: a state space $\mathcal{S}$, an action space $\mathcal{A}$, a transition kernel $P(s' \mid s, a)$, a reward $r(s, a)$, a discount $\gamma \in [0, 1)$, and an initial state distribution $\rho_0$. A policy $\pi(a \mid s)$ induces a discounted return
-\[
-J(\pi) \;=\; \mathbb{E}_{\pi}\!\left[\,\sum_{t \geq 0} \gamma^{t}\, r(s_t, a_t)\,\right],
-\]
-which all four algorithms aim to maximize.
+We model each environment as a discrete-time Markov decision process (MDP) $\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, r, \gamma, \rho_0)$ with state space $\mathcal{S}$, action space $\mathcal{A}$, transition kernel $P(s' \mid s, a)$, reward $r(s, a)$, discount $\gamma \in [0, 1)$, and initial distribution $\rho_0$. A policy $\pi(a \mid s)$ induces the discounted return $J(\pi) = \mathbb{E}_{\pi}[\sum_{t \geq 0} \gamma^{t} r(s_t, a_t)]$, which all four algorithms aim to maximize.
 
-\textbf{Value-based versus policy-based.} Value-based methods (DQN) learn the action-value function $Q^{\star}(s, a)$ and derive a policy by greedy action selection. Policy-based methods (PPO, SAC, TD3) learn an explicit parametric policy $\pi_\theta$ and optimize $J(\pi_\theta)$ directly, typically with an actor-critic decomposition.
+\textbf{Value-based versus policy-based.} Value-based methods (DQN) learn the action-value function $Q^{\star}(s, a)$ and derive a policy by greedy action selection. Policy-based methods (PPO, SAC, TD3) learn an explicit parametric policy $\pi_\theta$ via an actor-critic decomposition, which side-steps the $\max_{a'}$ over actions and naturally extends to continuous spaces.
 
-\textbf{On-policy versus off-policy.} On-policy methods (PPO) update only with data collected by the current policy, which gives clean theoretical guarantees but bounds sample reuse. Off-policy methods (DQN, SAC, TD3) reuse a large replay buffer, which can be far more sample efficient but introduces stability issues from distribution shift and bootstrapped targets.
-
-\textbf{Discrete versus continuous actions.} Tabular Q-learning generalizes naturally to discrete $\mathcal{A}$; for continuous $\mathcal{A}$, one cannot enumerate actions, so either an explicit policy network (PPO, SAC, TD3) or an actor-style sampler is required. This is the reason DQN is excluded from our two continuous environments.
+\textbf{On-policy versus off-policy.} On-policy methods (PPO) update only with data from the current policy, which gives clean theoretical guarantees but bounds sample reuse. Off-policy methods (DQN, SAC, TD3) reuse a replay buffer, trading sample efficiency for distribution-shift instability that target networks, twin Q heads, and entropy regularization aim to control.
 
 
 % =====================================================
@@ -86,36 +73,28 @@ which all four algorithms aim to maximize.
 % =====================================================
 \section{Methods}
 
-\subsection{DQN: deep Q-learning with target network}
-DQN \cite{mnih2013playing} parameterizes the action-value function $Q_\theta(s, a)$ with a multilayer perceptron (MLP) and minimizes the temporal-difference (TD) loss against a slowly updated target network $Q_{\bar{\theta}}$:
+\textbf{DQN} \cite{mnih2013playing} parameterizes $Q_\theta(s, a)$ with an MLP and minimizes the TD loss against a slowly updated target network $Q_{\bar{\theta}}$:
 \begin{equation}
-\mathcal{L}_{\text{DQN}}(\theta) \;=\; \mathbb{E}_{(s,a,r,s',d) \sim \mathcal{D}}\!\left[\,\ell_{\text{Huber}}\!\Big(Q_\theta(s,a) \,-\, \big(r + \gamma\,(1 - d)\,\max_{a'} Q_{\bar{\theta}}(s', a')\big)\Big)\right],
+\mathcal{L}_{\text{DQN}}(\theta) = \mathbb{E}_{(s,a,r,s',d) \sim \mathcal{D}}\!\left[\ell_{\text{Huber}}\!\Big(Q_\theta(s,a) - \big(r + \gamma(1 - d)\textstyle\max_{a'} Q_{\bar{\theta}}(s', a')\big)\Big)\right],
 \label{eq:dqn}
 \end{equation}
-where $\mathcal{D}$ is the replay buffer, $d \in \{0, 1\}$ indicates an episode terminal step, and we use the Huber loss instead of the squared loss for robustness in the early training regime. Exploration is $\varepsilon$-greedy, linearly annealed. Two implementation choices we revisit in the diary are: (i) the Huber-versus-MSE choice, since MSE blew up several seeds during tuning; and (ii) the convention that the bootstrap target uses the \texttt{terminated} flag only, not \texttt{terminated or truncated}: a truncated episode has a non-zero continuation value that should not be zeroed.
+with $\varepsilon$-greedy exploration linearly annealed. We use Huber over MSE (MSE blew up several seeds during tuning) and the bootstrap target zeros only on \texttt{terminated}, not \texttt{terminated or truncated}.
 
-\subsection{PPO: clipped policy gradient with GAE}
-PPO \cite{schulman2017proximal} optimizes an actor $\pi_\theta$ and value baseline $V_\phi$ on rollouts of fixed length, with the clipped surrogate
+\textbf{PPO} \cite{schulman2017proximal} optimizes an actor $\pi_\theta$ and value baseline $V_\phi$ on fixed-length rollouts via the clipped surrogate
 \begin{equation}
-\mathcal{L}_{\text{PPO}}(\theta) \;=\; -\,\mathbb{E}_{t}\!\left[\,\min\!\Big(r_t(\theta)\, \hat{A}_t,\; \mathrm{clip}\!\big(r_t(\theta),\, 1 - \epsilon,\, 1 + \epsilon\big)\, \hat{A}_t\Big)\right] \;+\; c_{v}\, \mathcal{L}_{\text{value}} \;-\; c_{e}\, \mathcal{H}[\pi_\theta],
+\mathcal{L}_{\text{PPO}}(\theta) = -\mathbb{E}_{t}\!\left[\min\!\Big(r_t(\theta) \hat{A}_t,\; \mathrm{clip}(r_t(\theta), 1 - \epsilon, 1 + \epsilon) \hat{A}_t\Big)\right] + c_{v} \mathcal{L}_{\text{value}} - c_{e} \mathcal{H}[\pi_\theta],
 \label{eq:ppo}
 \end{equation}
-where $r_t(\theta) = \pi_\theta(a_t \mid s_t) / \pi_{\theta_{\text{old}}}(a_t \mid s_t)$ is the importance ratio and $\hat{A}_t$ is the generalized advantage estimate (GAE) with parameters $(\gamma, \lambda)$. The clip enforces a soft trust region empirically, without an explicit KL constraint. Two diary-flagged details: (i) Pendulum truncates every episode at 200 steps and we fold $\gamma V(s_{t+1})$ into the reward at truncation so that GAE correctly accounts for the value of the truncated state, and (ii) advantages are normalized per minibatch, not per rollout, which we found to make a visible difference on Acrobot.
+with $r_t(\theta) = \pi_\theta(a_t \mid s_t)/\pi_{\theta_{\text{old}}}(a_t \mid s_t)$ and GAE advantage $\hat{A}_t$. The clip acts as a soft trust region. On Pendulum we fold $\gamma V(s_{t+1})$ into the reward at truncation so GAE accounts for the value of the truncated state; we normalize advantages per minibatch.
 
-\subsection{SAC: maximum-entropy off-policy actor-critic}
-SAC \cite{haarnoja2018soft} maximizes the entropy-augmented return
-\begin{equation}
-J_{\text{SAC}}(\pi) \;=\; \mathbb{E}_{\pi}\!\left[\sum_{t \geq 0} \gamma^{t}\Big(r(s_t, a_t) + \alpha\, \mathcal{H}\big[\pi(\cdot \mid s_t)\big]\Big)\right],
-\end{equation}
-with twin Q-networks, a squashed-Gaussian actor $a = \tanh(\mu_\theta(s) + \sigma_\theta(s) \cdot \xi)$ and a temperature $\alpha$ tuned automatically by gradient descent on $\log \alpha$ against a target entropy $\bar{\mathcal{H}} = -|\mathcal{A}|$. The actor loss is the standard reparameterized expression $\mathbb{E}_{s \sim \mathcal{D},\, \xi}\big[\alpha\, \log \pi_\theta(a \mid s) - \min_{i \in \{1,2\}} Q_{\bar{\phi}_i}(s, a)\big]$. Two diary-flagged details: (i) the analytic Jacobian correction $\log \pi(a \mid s) = \log \mathcal{N}(u; \mu, \sigma) - \sum_i \log\!\big(1 - \tanh^{2}(u_i)\big)$ for the tanh squash, without which the entropy term is silently wrong, and (ii) the $\log \alpha$ parameterization, which keeps $\alpha$ positive without a hard constraint.
+\textbf{SAC} \cite{haarnoja2018soft} maximizes $J_{\text{SAC}}(\pi) = \mathbb{E}_{\pi}[\sum_{t \geq 0} \gamma^{t}(r(s_t, a_t) + \alpha \mathcal{H}[\pi(\cdot \mid s_t)])]$ with twin Q-networks and a squashed-Gaussian actor $a = \tanh(\mu_\theta(s) + \sigma_\theta(s) \xi)$. Temperature $\alpha$ is tuned by gradient descent on $\log \alpha$ against a target entropy $\bar{\mathcal{H}} = -|\mathcal{A}|$. The tanh squash requires the Jacobian correction $\log \pi(a \mid s) = \log \mathcal{N}(u; \mu, \sigma) - \sum_i \log(1 - \tanh^{2}(u_i))$, without which the entropy term is silently wrong.
 
-\subsection{TD3: twin-critic deterministic policy gradient}
-TD3 \cite{fujimoto2018addressing} keeps the off-policy actor-critic skeleton but replaces SAC's entropy bonus with three orthogonal stability tricks: clipped twin Q-targets, target policy smoothing, and delayed policy updates. The critic target is
+\textbf{TD3} \cite{fujimoto2018addressing} replaces SAC's entropy bonus with twin Q-targets, target policy smoothing, and delayed actor updates. The critic target is
 \begin{equation}
-y \;=\; r + \gamma\,(1 - d)\, \min_{i \in \{1, 2\}}\, Q_{\bar{\phi}_i}\!\Big(s',\; \mathrm{clip}\!\big(\pi_{\bar{\theta}}(s') + \mathrm{clip}(\epsilon, -c, c),\, a_{\min}, a_{\max}\big)\Big),\quad \epsilon \sim \mathcal{N}(0, \tilde{\sigma}^{2} I),
+y = r + \gamma(1 - d) \min_{i \in \{1, 2\}} Q_{\bar{\phi}_i}\!\Big(s', \mathrm{clip}\!\big(\pi_{\bar{\theta}}(s') + \mathrm{clip}(\epsilon, -c, c), a_{\min}, a_{\max}\big)\Big),\; \epsilon \sim \mathcal{N}(0, \tilde{\sigma}^{2} I),
 \label{eq:td3}
 \end{equation}
-and the actor is updated every $d_{\text{policy}} = 2$ critic updates by deterministic policy gradient $\nabla_\theta \mathbb{E}_{s \sim \mathcal{D}}\!\big[Q_{\phi_1}(s, \pi_\theta(s))\big]$. Two diary-flagged details: (i) target policy smoothing noise and exploration noise are kept on independent schedules ($\tilde{\sigma} = 0.2$ for smoothing, $\sigma = 0.1$ for exploration and $0.3$ on MountainCarContinuous), and (ii) the smoothed target action is clipped \emph{twice}, first symmetrically around the target action and then to the environment action range.
+with $d_{\text{policy}} = 2$. Target-smoothing noise ($\tilde{\sigma}=0.2$) and exploration noise ($\sigma=0.1$, $0.3$ on MCC) are independent; the smoothed target action is clipped twice, on the noise and on the action range.
 
 
 % =====================================================
@@ -170,13 +149,31 @@ The exact YAML hyperparameter files are committed under \texttt{applied\_project
 \label{tab:scoreboard}
 \end{table}
 
-\textbf{CartPole-v1.} DQN is bimodal across seeds. The final 20-episode rolling means were $477.6$, $120.0$ and $127.0$ for seeds $0, 1, 2$: one seed solves the task, two collapse, almost certainly to Q-value overestimation that the target network and the modest budget cannot tame. PPO is markedly more reliable, with a final mean of $380$ and a CI of $[350, 402]$. This is the textbook DQN-versus-PPO stability contrast, and we deliberately did not paper over it (see Section~\ref{sec:diary}). Per-seed traces are visible in \texttt{plots/seed\_grid/dqn\_CartPole-v1.pdf}.
+\textbf{CartPole-v1.} DQN is bimodal across seeds: final rolling means $477.6$, $120.0$, $127.0$ for seeds 0, 1, 2 (one solves, two collapse to Q-overestimation). PPO is much more reliable: mean $380$, CI $[350, 402]$. A textbook DQN-vs-PPO stability contrast.
 
-\textbf{Acrobot-v1.} The picture reverses. DQN reaches the $-100$ solved threshold in roughly $30$k steps and ends at $-96.1$, $[-101, -94]$, with the cleanest learning curve in the entire dataset. PPO is slower and noisier: mean $-127$, CI $[-216, -82]$, with seed $2$ collapsing to $-274$. Acrobot is a clean Q-learning task: small discrete action space, dense reward, modest horizon, exactly the regime in which DQN was designed.
+\textbf{Acrobot-v1.} The picture reverses. DQN reaches the $-100$ solved threshold in $\sim 30$k steps and ends at $-96.1$, $[-101, -94]$, the cleanest curve in the dataset. PPO is slower and noisier (mean $-127$, CI $[-216, -82]$, seed 2 collapses to $-274$). Small discrete action space, dense reward, modest horizon, exactly DQN's regime.
 
-\textbf{Pendulum-v1.} SAC and TD3 dominate. SAC reaches the $-200$ threshold in $\sim 7.4$k env steps; TD3 in $\sim 8.6$k. PPO needs $\sim 95$k steps to reach the same threshold and does not fully clear it by 200k steps, ending at $-248$. SAC is therefore $\sim 12.9\times$ more sample-efficient than PPO on this task, consistent with the off-policy replay advantage on a dense-reward continuous control benchmark.
+\textbf{Pendulum-v1.} SAC and TD3 dominate. SAC reaches the $-200$ threshold in $\sim 7.4$k env steps; TD3 in $\sim 8.6$k. PPO needs $\sim 95$k steps and does not fully clear $-200$ by 200k, ending at $-248$. SAC is $\sim 12.9\times$ more sample-efficient than PPO here, consistent with off-policy replay on dense-reward continuous control.
 
-\textbf{MountainCarContinuous-v0.} This is the headline finding. Only PPO ever discovers the $+100$ goal reward: its final return is $-56$ with CI $[-100, -5]$, driven by seed $2$ reaching $-2.5$ (i.e., solving). Both SAC ($-0.8$ across all three seeds, perfectly flat) and TD3 ($-9.1$ across all three seeds) plateau at a lazy local optimum where the policy outputs near-zero action magnitudes and never reaches the flag. Both off-policy exploration mechanisms (SAC's entropy bonus, TD3's Gaussian noise) are locally myopic on a sparse-reward task whose only positive signal sits behind a long sequence of seemingly unrewarded actions; PPO's on-policy refresh of the rollout occasionally swings the actor far enough to cross the threshold and back-propagate the bonanza.
+\textbf{MountainCarContinuous-v0.} Headline finding. Only PPO ever discovers the $+100$ goal (final $-56$, CI $[-100, -5]$, driven by seed 2 reaching $-2.5$). SAC ($-0.8$, flat across 3 seeds) and TD3 ($-9.1$, also flat) plateau at a lazy local optimum with near-zero action magnitudes. Both off-policy exploration mechanisms (entropy, Gaussian noise) are locally myopic on this sparse-reward task; PPO's on-policy rollout refresh occasionally swings the actor across the threshold and back-propagates the bonanza.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.32\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/bars/wall_clock.pdf}
+  \caption{Wall-clock, s per $10^{5}$ env steps.}\label{fig:bar_wall}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/bars/sample_efficiency.pdf}
+  \caption{Steps to threshold (lower is better).}\label{fig:bar_eff}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/bars/param_count.pdf}
+  \caption{Actor parameter count.}\label{fig:bar_par}
+\end{subfigure}
+\caption{Quantitative summaries per algorithm and environment: compute, sample efficiency, and model size.}
+\label{fig:bars}
+\end{figure}
 
 
 % =====================================================
@@ -185,63 +182,40 @@ The exact YAML hyperparameter files are committed under \texttt{applied\_project
 \section{Ablations (pre-registered)}
 \label{sec:ablations}
 
-We pre-registered four ablations before running any sweep, one per algorithm. Each sweep uses three seeds at a 100k-step budget. The headline scientific finding of the project emerges from the two MountainCarContinuous (MCC) sweeps taken together: turning the available exploration knobs on either off-policy algorithm does not rescue them on sparse reward.
-
-\subsection{DQN target-sync period on CartPole-v1}
-\label{sec:abl_dqn}
-
-\textbf{Hypothesis (pre-registered).} Too-frequent sync ($100$ steps) is almost equivalent to bootstrapping against a non-stationary target and should destabilize learning; too-rare sync ($5000$) keeps targets stale and slows convergence within the 100k budget; the canonical $1000$ is the sweet spot.
+We pre-registered four ablations before running them, one per algorithm, 3 seeds at a 100k-step budget. The choice is deliberate: each sweep targets the single hyperparameter most likely to be the binding constraint on its algorithm's behaviour, and the pre-registration commits us to reporting the outcome whether or not it confirms the canonical default. Figure~\ref{fig:abl} shows all four. The headline result emerges from the two MountainCarContinuous (MCC) sweeps taken together: turning the off-policy exploration knobs (SAC $\alpha$ or TD3 $\sigma$) does not rescue them on sparse reward.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{../plots/ablations/dqn_target_sync.pdf}
-\caption{DQN on CartPole-v1, target-sync period sweep, 3 seeds, 100k steps.}
-\label{fig:abl_dqn}
+\begin{subfigure}[t]{0.48\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/ablations/dqn_target_sync.pdf}
+  \caption{DQN target-sync, CartPole-v1.}\label{fig:abl_dqn}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.48\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/ablations/ppo_clip_ratio.pdf}
+  \caption{PPO clip ratio, Pendulum-v1.}\label{fig:abl_ppo}
+\end{subfigure}
+
+\vspace{0.4em}
+
+\begin{subfigure}[t]{0.48\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/ablations/sac_alpha.pdf}
+  \caption{SAC $\alpha$, MountainCarContinuous-v0.}\label{fig:abl_sac}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.48\textwidth}\centering
+  \includegraphics[width=\linewidth]{../plots/ablations/td3_exploration_noise.pdf}
+  \caption{TD3 $\sigma$, MountainCarContinuous-v0.}\label{fig:abl_td3}
+\end{subfigure}
+\caption{Four pre-registered ablation sweeps, 3 seeds each, 100k steps. Mean across seeds with 95\% bootstrap CI.}
+\label{fig:abl}
 \end{figure}
 
-\textbf{Result.} A classic U-shape. With $\tau_{\text{sync}} = 100$, all three seeds collapse below the random baseline (final 20-episode rolling means of $9.8$, $9.5$, $9.6$); Q-overestimation propagates faster than the network can correct. With $\tau_{\text{sync}} = 5000$, all three seeds plateau at $97.5$, $128.7$, $106.3$, too slow to clear the 475 bar in 100k steps. The canonical $\tau_{\text{sync}} = 1000$ is bimodal ($477.6$, $120.0$, $127.1$), exactly the behaviour observed in the main matrix. The hypothesis is confirmed, and the result also gives a mechanistic explanation for the bimodality: $1000$ sits at the edge of the stable region, and a fraction of the seed-induced randomness in early Q-value estimates is enough to push the run into the unstable regime.
+\textbf{DQN target-sync (Fig.~\ref{fig:abl_dqn}).} Hypothesis: too-frequent sync destabilises, too-rare stalls; canonical $\tau{=}1000$ is the sweet spot. Result: a classic U-shape. $\tau{=}100$ collapses (final rolling means $9.8$, $9.5$, $9.6$, below random); $\tau{=}5000$ plateaus at $97{-}129$; $\tau{=}1000$ is bimodal ($477.6$, $120.0$, $127.1$), exactly the main-grid behaviour. The canonical default sits at the edge of stability, which mechanistically explains the CartPole bimodality.
 
-\subsection{PPO clip ratio on Pendulum-v1}
-\label{sec:abl_ppo}
+\textbf{PPO clip ratio (Fig.~\ref{fig:abl_ppo}).} Hypothesis: $0.2$ dominates; $0.1$ too conservative; $0.3$ relaxes the trust region too much. Result: partially confirmed. $\epsilon{=}0.1$ is worst (means $-227$, $-199$, $-329$); $0.2$ and $0.3$ are tied within budget. The under-clip failure mode is far more dangerous than the over-clip mode on dense-reward continuous control.
 
-\textbf{Hypothesis (pre-registered).} The canonical clip $0.2$ should dominate. $0.1$ is too conservative on dense-reward continuous control and should learn slowly; $0.3$ relaxes the soft trust region and should be less stable.
+\textbf{SAC $\alpha$ (Fig.~\ref{fig:abl_sac}).} Hypothesis: auto-$\alpha$ holds entropy high until the policy locks on; fixed-$\alpha$ should be worse. Result: hypothesis rejected in the strongest possible way: \textbf{zero goal discoveries across all 9 seeds}. Auto-$\alpha$ gives the lazy local optimum ($-0.8$); $\alpha{=}0.05$ random-walks ($-19$); $\alpha{=}0.20$ thrashes ($-30$). Three regimes, three failure modes, none reaches the flag.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.7\textwidth]{../plots/ablations/ppo_clip_ratio.pdf}
-\caption{PPO on Pendulum-v1, clip-ratio sweep, 3 seeds, 200k steps.}
-\label{fig:abl_ppo}
-\end{figure}
-
-\textbf{Result.} Partially confirmed. Clip $0.1$ is the worst, with final 20-episode rolling means of $-226.9$, $-199.0$, $-329.2$: the importance-ratio clip is binding too often, and the policy cannot move fast enough to track the value function. Clips $0.2$ and $0.3$ are approximately tied within the 200k-step budget ($-168, -173, -259$ versus $-171, -162, \sim\!-250$), with $0.3$ marginally ahead on mean return. The canonical $0.2$ is defensible but not strictly optimal; the trust-region intuition would predict $0.3$ to fail somewhere, and on a longer budget or a harder environment we expect it would. The takeaway is that on dense-reward continuous control the under-clip failure mode is far more dangerous than the over-clip failure mode.
-
-\subsection{SAC temperature on MountainCarContinuous-v0}
-\label{sec:abl_sac}
-
-\textbf{Hypothesis (pre-registered).} The sparse-reward task stresses exploration; the auto-$\alpha$ schedule (target entropy $-|\mathcal{A}|$) should hold entropy high until the policy locks on, and fixed-$\alpha$ should be worse, especially at low $\alpha$.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.7\textwidth]{../plots/ablations/sac_alpha.pdf}
-\caption{SAC on MountainCarContinuous-v0, temperature sweep, 3 seeds, 100k steps.}
-\label{fig:abl_sac}
-\end{figure}
-
-\textbf{Result.} The hypothesis is rejected in the strongest possible way: zero goal discoveries across all 9 seeds. Auto-$\alpha$ yields the familiar lazy-local-optimum failure ($-0.8$ across all three seeds, with near-zero action magnitudes). Fixed $\alpha = 0.05$ underexplores and performs a random walk ($-19.2, -19.3, -19.2$). Fixed $\alpha = 0.20$ overexplores and thrashes ($-30.2, -30.4, -30.3$). Three different exploration regimes, three different failure modes, none of them ever reaches the flag. SAC's entropy-bonus mechanism is structurally inadequate for sparse reward on this environment: the bonus drives uniform coverage of the local action set, not directed exploration in state space.
-
-\subsection{TD3 exploration noise on MountainCarContinuous-v0}
-\label{sec:abl_td3}
-
-\textbf{Hypothesis (pre-registered).} The canonical $\sigma = 0.1$ is too quiet for sparse reward; $\sigma = 0.5$ should accelerate goal discovery.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.7\textwidth]{../plots/ablations/td3_exploration_noise.pdf}
-\caption{TD3 on MountainCarContinuous-v0, exploration-noise sweep, 3 seeds, 100k steps.}
-\label{fig:abl_td3}
-\end{figure}
-
-\textbf{Result.} The hypothesis is rejected. Higher $\sigma$ makes performance \emph{worse}, not better: $\sigma = 0.1$ gives roll20 of $-1.0, -1.2, -1.1$ (near-zero action policy), $\sigma = 0.3$ gives $-8.9, -9.9, -10.3$ (some movement, no goal), and $\sigma = 0.5$ gives $-22.3, -24.8, -25.0$ (large random thrashing, no goal). Taken with the SAC sweep, this is the headline scientific finding of the project: two independent off-policy continuous-control algorithms, with two structurally different exploration mechanisms (entropy regularization and additive Gaussian noise), fail on the same task in the same way, and turning the exploration knob in either direction does not help. By contrast, PPO discovers the goal on 1/3 seeds in the main matrix (Section~5) with no special tuning. The structural advantage that PPO has on this environment is on-policy rollout collection: a fresh batch of trajectories under the current policy occasionally includes a long sequence of correlated actions that crosses the hill, and the resulting reward bonanza propagates immediately through the policy gradient. The off-policy methods' decorrelated single-step buffer samples cannot do this.
+\textbf{TD3 $\sigma$ (Fig.~\ref{fig:abl_td3}).} Hypothesis: larger $\sigma$ accelerates goal discovery. Result: hypothesis rejected; \emph{more noise is worse}. $\sigma{=}0.1$ gives $-1.0$ (near-zero action policy); $\sigma{=}0.3$ gives $-9$; $\sigma{=}0.5$ gives $-23$ (large random thrashing, still no goal). Combined with the SAC sweep this is the project's headline negative result: two off-policy mechanisms (entropy regularisation, additive Gaussian noise) drive uniform coverage of the \emph{local} action set rather than directed state-space exploration, while PPO's on-policy rollouts occasionally produce a long correlated action sequence that crosses the hill, which off-policy decorrelated replay samples cannot.
 
 
 % =====================================================
@@ -250,31 +224,23 @@ We pre-registered four ablations before running any sweep, one per algorithm. Ea
 \section{Implementation diary}
 \label{sec:diary}
 
-This section records the engineering choices and bugs that shaped our final numbers. The brief explicitly grades on this material.
+The brief grades on the details that turn a paper recipe into a working agent. We list the ones that bit us.
 
-\textbf{DQN: a five-version tuning saga on CartPole.} We attempted five hyperparameter configurations before accepting the bimodal result as a finding instead of a bug. (v1) Canonical: $\mathrm{lr} = 10^{-3}$, target sync $1000$, batch $64$, $\varepsilon$ floor $5\%$: seed $0$ solves at $477$, seeds $1$ and $2$ collapse. (v2) Conservative: $\mathrm{lr} = 5 \times 10^{-4}$, batch $128$, target $500$, $\varepsilon$ floor $20\%$: all three seeds plateau between $120$ and $165$. (v3) SB3-zoo burst: $\mathrm{lr} = 2.3 \times 10^{-3}$, \texttt{train\_freq} $256$, gradient steps $128$, target $10$: seed $0$ falls to $42$. The aggressive target-sync semantics did not translate cleanly to our training loop. (v4) CleanRL-style: $\mathrm{lr} = 2.5 \times 10^{-4}$, \texttt{train\_freq} $10$, $\varepsilon$ floor $50\%$, learning starts $10$k: catastrophic collapse to a return of $9$, worse than the random policy. (v5) v1 with three damping changes ($\mathrm{lr} = 5 \times 10^{-4}$, batch $128$, target $2000$): seed $0$ reaches only $155$ in the budget. We shipped v1 and documented the seed sensitivity. This is the kind of observation the brief asks us to surface and we treat it as a result, not a defect.
+\textbf{DQN: five tuning iterations on CartPole.} Five hyperparameter configurations before accepting the bimodal result as a finding, not a bug. (v1) Canonical $\mathrm{lr}{=}10^{-3}$, target $1000$, batch $64$: seed 0 solves at 477, seeds 1 and 2 collapse. (v2) Conservative: all three plateau at 120--165. (v3) SB3-zoo burst ($\mathrm{lr}{=}2.3\!\times\!10^{-3}$, target $10$): seed 0 falls to 42. (v4) CleanRL-style: catastrophic collapse to 9. (v5) v1 with damping ($\mathrm{lr}{=}5\!\times\!10^{-4}$, target $2000$): seed 0 reaches only 155 in budget. We shipped v1. The ablation (Section~\ref{sec:abl_dqn}) later showed why: $\tau{=}1000$ sits at the edge of a U-shape, so seed-induced randomness pushes runs into the unstable regime.
 
-\textbf{PPO: truncation bootstrap.} Pendulum-v1 truncates every episode at step 200, with no terminal signal. Naive rollout buffers conflate truncation with termination, which biases GAE by zeroing out a non-zero continuation value. We fold $\gamma\, V_\phi(s_{t+1})$ into the reward at the truncated step and mark the buffer's \texttt{done} flag so that GAE's bootstrap mask is consistent. Without this, Pendulum returns were systematically depressed by $\sim 30$ across seeds. Relatedly, we caught a bootstrap-mask bug early on: the rolling GAE convention uses \texttt{dones[t]} (whether step $t$ ended the episode) to mask the bootstrap into the value of \texttt{obs[t+1]}, not \texttt{dones[t+1]}.
+\textbf{PPO: truncation bootstrap.} Pendulum truncates every episode at step 200 with no terminal flag. Naive buffers conflate truncation with termination, which biases GAE by zeroing a non-zero continuation value. We fold $\gamma V_\phi(s_{t+1})$ into the reward at the truncated step and set the buffer's \texttt{done} flag so GAE is consistent; without this, returns were depressed by $\sim 30$ across seeds. We also caught a mask bug: the rolling GAE convention uses \texttt{dones[t]} (whether step $t$ ended the episode) to mask the bootstrap into $V(\mathtt{obs[t+1]})$, not \texttt{dones[t+1]}.
 
-\textbf{PPO: advantage normalization.} Normalizing advantages per minibatch (not per rollout) noticeably tightened the CIs on Acrobot. We hypothesize that the per-rollout normalization smears out the strong negative-tail structure of Acrobot's $-1$-per-step reward across minibatches.
+\textbf{PPO: per-minibatch advantage normalization.} Normalizing advantages per minibatch (not per rollout) noticeably tightened the Acrobot CIs. We hypothesize that per-rollout normalization smears the strong negative-tail structure of Acrobot's $-1$-per-step reward across minibatches, which softens the directional signal for the policy update.
 
-\textbf{SAC: the tanh log-prob correction.} A squashed-Gaussian policy $a = \tanh(u),\, u \sim \mathcal{N}(\mu, \sigma)$ has a non-trivial Jacobian, and the log-density of $a$ must include the correction $-\sum_i \log\!\big(1 - \tanh^{2}(u_i)\big)$. Without this term, the entropy bonus in the actor loss is wrong, and SAC fails silently (training continues, no NaNs, but the return curve never moves off the warmup floor). We learned this the hard way on Pendulum.
+\textbf{SAC: the tanh Jacobian.} A squashed-Gaussian policy $a = \tanh(u),\, u \sim \mathcal{N}(\mu, \sigma)$ has a non-trivial Jacobian, and the log-density must include $-\sum_i \log(1 - \tanh^{2}(u_i))$. Without it the entropy bonus is silently wrong: training continues with no NaNs, but the return curve never moves off the warmup floor. We learned this the hard way on Pendulum.
 
-\textbf{SAC: log-alpha parameterization.} We optimize $\log \alpha \in \mathbb{R}$ instead of $\alpha > 0$ directly. This keeps $\alpha$ positive without a projection step and, in our experience, stabilizes the alpha update, since $\alpha$ otherwise drifts to absurd values during the warmup phase.
+\textbf{SAC: log-alpha parameterization.} We optimize $\log \alpha \in \mathbb{R}$ rather than $\alpha > 0$, which keeps $\alpha$ positive without a projection step and stabilizes the alpha update; $\alpha$ otherwise drifts to absurd values during the warmup phase and the target-entropy gradient never recovers.
 
-\textbf{TD3: target policy smoothing details.} The smoothed target action is
-\[
-\mathrm{clip}\!\big(\pi_{\bar{\theta}}(s') + \mathrm{clip}(\epsilon, -0.5, 0.5),\; a_{\min},\, a_{\max}\big),\qquad \epsilon \sim \mathcal{N}(0,\, 0.2^{2}\, I).
-\]
-The two clips are not redundant: the inner clip caps the smoothing magnitude regardless of the target action's location; the outer clip keeps the resulting action inside the environment's action range. Skipping the outer clip on MountainCarContinuous caused the actor to stick on the action boundary. We also keep exploration noise on a separate schedule ($\sigma = 0.1$ default, $0.3$ on MountainCarContinuous to encourage goal-reaching), since blending the two noise sources removes a degree of design freedom that the original paper depends on.
+\textbf{TD3: target policy smoothing details.} The smoothed target action is $\mathrm{clip}(\pi_{\bar{\theta}}(s') + \mathrm{clip}(\epsilon, -0.5, 0.5), a_{\min}, a_{\max})$ with $\epsilon \sim \mathcal{N}(0, 0.2^{2} I)$. The two clips are not redundant: the inner caps the smoothing magnitude, the outer keeps the result inside the action range. Skipping the outer clip on MCC sticks the actor on the boundary. Exploration noise stays on a separate schedule ($\sigma{=}0.1$ default, $0.3$ on MCC).
 
-\textbf{Bootstrap-mask convention across all algorithms.} The bootstrap target uses \texttt{terminated} only, not \texttt{terminated or truncated}. A truncated episode has a non-zero future value that should not be zeroed by the bootstrap mask; only true terminal states (Acrobot goal, CartPole pole drop) should mask the bootstrap. We mention this once here because the convention is identical for DQN, PPO, SAC and TD3 and is easy to get wrong when one alternates between algorithms.
+\textbf{Bootstrap-mask convention (all four).} The bootstrap target uses \texttt{terminated} only, not \texttt{terminated or truncated}. A truncated episode has a non-zero continuation value that should not be zeroed; only true terminals (Acrobot goal, CartPole pole drop) mask the bootstrap. The convention is identical across DQN, PPO, SAC, TD3 and is easy to get wrong when one alternates between algorithms.
 
-\textbf{DQN target-sync as a U-shape, not a monotone.} Our pre-registered ablation (Section~\ref{sec:abl_dqn}) gave a sharp mechanistic reason for the CartPole bimodality. The sync period sits on a U-shape: $\tau_{\text{sync}} = 100$ collapses, $\tau_{\text{sync}} = 5000$ stalls, and the canonical $\tau_{\text{sync}} = 1000$ sits at the edge of the stable basin. Seed-induced randomness in early Q estimates is enough to push some runs into the unstable side, which is what we observe on seeds 1 and 2 in the main matrix. Before running the sweep we suspected the canonical default was simply unlucky; the sweep showed it was sensitive by design.
-
-\textbf{SAC entropy is not exploration.} The SAC $\alpha$ sweep on MountainCarContinuous (Section~\ref{sec:abl_sac}) produced zero goal discoveries across 9 seeds and three different failure modes (lazy local optimum at auto-$\alpha$, random walk at $\alpha = 0.05$, thrashing at $\alpha = 0.20$). The pre-registered hypothesis that auto-$\alpha$ would save us was clean and the rejection was clean. The mental-model update is that the entropy term in the SAC objective drives uniform coverage of the local action set conditional on state, not directed exploration in state space, and on this task no setting of the local action distribution makes the algorithm encounter the goal within 100k steps.
-
-\textbf{TD3 noise: more is worse.} The TD3 exploration-noise sweep (Section~\ref{sec:abl_td3}) rejected the natural hypothesis that larger Gaussian exploration would accelerate goal discovery. $\sigma = 0.5$ is worse than $\sigma = 0.1$, not better, because the additive noise produces decorrelated single-step random thrashing instead of the long correlated action sequences needed to cross the hill. This is the same failure mode as SAC's entropy bonus, from a different starting point, and together the two sweeps form the project's headline negative result.
+\textbf{Seeding and reproducibility.} We seed \texttt{torch}, \texttt{numpy}, the Python \texttt{random} module, and Gymnasium's per-environment RNG from a single root seed at the start of each run. CUDA non-determinism is left enabled because the per-step kernel-determinism cost was not justified by our analysis budget; the bootstrap CIs absorb this and reproducing the exact rolling-mean curves bit-for-bit is not a stated goal of the project. The full per-(algorithm, environment) configuration files are committed under \texttt{configs/}, and the analysis script regenerates every figure and the scoreboard from the logs.
 
 
 % =====================================================
@@ -282,15 +248,15 @@ The two clips are not redundant: the inner clip caps the smoothing magnitude reg
 % =====================================================
 \section{Qualitative discussion}
 
-The brief asks four qualitative questions. We answer each with scoreboard numbers from Table~\ref{tab:scoreboard}.
+We answer the brief's four questions with scoreboard numbers from Table~\ref{tab:scoreboard}.
 
-\textbf{(a) Which algorithm is more computationally expensive per iteration?} SAC, by a wide margin. The scoreboard gives wall-clock per $10^{5}$ env steps: SAC $1183$\,s on Pendulum and $2713$\,s on MountainCarContinuous, TD3 in the $483$ to $862$\,s range, PPO in the $442$ to $1961$\,s range, DQN in the $98$ to $120$\,s range. The ordering SAC $>$ TD3 $>$ PPO $>$ DQN is driven by the number of gradient updates per environment step (SAC trains a $(256, 256)$ actor, two critics, two target critics, and the temperature on every env step; DQN trains one $(64, 64)$ network every four steps).
+\textbf{(a) Most computationally expensive per iteration?} SAC, by a wide margin. Wall-clock per $10^{5}$ env steps: SAC $1183$\,s (Pendulum) and $2713$\,s (MCC); TD3 $483$--$862$\,s; PPO $442$--$1961$\,s; DQN $98$--$120$\,s. Ordering SAC $>$ TD3 $>$ PPO $>$ DQN reflects gradient updates per env step.
 
-\textbf{(b) Which algorithm stores the policy more compactly?} DQN and PPO, but by a hyperparameter choice, not an algorithmic property. Our DQN and PPO actors use $(64, 64)$ MLPs ($\sim 4.6$k parameters); our SAC and TD3 actors use $(256, 256)$ MLPs ($\sim 67$k parameters), a $15\times$ gap that follows the canonical paper recipes. The algorithms themselves do not mandate these widths, so this is genuinely a width comparison, not an algorithm comparison. We surface this caveat explicitly because it is a faithful answer to a slightly ill-posed question.
+\textbf{(b) Most compact policy?} DQN and PPO, but by hyperparameter choice. Our DQN/PPO actors use $(64,64)$ MLPs ($\sim 4.6$k params); SAC/TD3 use $(256,256)$ ($\sim 67$k), a $15\times$ gap following the canonical paper recipes, not algorithmic mandates. We flag this caveat: it is a width comparison, not an algorithm comparison.
 
-\textbf{(c) Which one scales better for continuous actions?} There is no single winner, and the ablations sharpen the picture. SAC and TD3 dominate on dense-reward continuous control (Pendulum, where both are $\sim 12\times$ more sample-efficient than PPO). On sparse-reward continuous control (MountainCarContinuous) both off-policy methods fail catastrophically: SAC plateaus at $-0.8$ across all three seeds in the main matrix, and the $\alpha$ sweep (Section~\ref{sec:abl_sac}) produces zero goal discoveries across 9 seeds spanning auto-$\alpha$ and two fixed-$\alpha$ baselines; TD3 plateaus at $-9.1$ across three seeds and the exploration-noise sweep (Section~\ref{sec:abl_td3}) shows that more noise makes performance \emph{worse}, not better. Turning the available exploration knobs on either off-policy algorithm does not rescue them. PPO, with the same network width budget and no special tuning, finds the goal on 1/3 seeds because on-policy rollout collection occasionally produces a long correlated action sequence that crosses the hill. Practically: pick SAC or TD3 first; if the reward is sparse and exploration is the bottleneck, switch to PPO or augment with explicit exploration bonuses (the off-policy exploration mechanism itself is the binding constraint, not its hyperparameters).
+\textbf{(c) Scales better for continuous actions?} No single winner, and the ablations sharpen the picture. SAC and TD3 dominate dense-reward continuous control (Pendulum, where both are $\sim 12\times$ more sample-efficient than PPO; Fig.~\ref{fig:bar_eff}). On sparse-reward MCC both off-policy methods fail catastrophically: SAC plateaus at $-0.8$ across the main matrix and the $\alpha$ sweep produces zero goal discoveries across nine seeds; TD3 plateaus at $-9.1$ and the noise sweep shows that more noise makes performance \emph{worse}, not better. Turning the available exploration knobs on either off-policy algorithm does not rescue them. PPO, with the same network-width budget and no special tuning, finds the goal on 1/3 seeds because on-policy rollout collection occasionally produces a long correlated action sequence that crosses the hill. Practically: pick SAC or TD3 first on continuous control; switch to PPO, or augment with an explicit exploration bonus, the moment reward becomes sparse. The off-policy exploration mechanism is the binding constraint, not its hyperparameters.
 
-\textbf{(d) Which algorithm makes efficient use of off-policy data?} SAC, decisively. On Pendulum it reaches the solved threshold in $\sim 7.4$k env steps versus PPO's $\sim 95$k, a $12.9\times$ sample-efficiency gap. The off-policy replay buffer plus the entropy-regularized objective is exactly the combination of ingredients that the SAC paper was designed around, and Pendulum is exactly the regime in which the design pays off.
+\textbf{(d) Efficient use of off-policy data?} SAC, decisively. On Pendulum it reaches the solved threshold in $\sim 7.4$k env steps versus PPO's $\sim 95$k, a $12.9\times$ gap. The off-policy replay buffer plus the entropy-regularized objective is exactly the combination of ingredients that the SAC paper was designed around, and Pendulum is exactly the regime in which the design pays off. The same off-policy machinery is, however, the source of SAC's failure on MCC, where decorrelated single-step replay cannot reproduce the long correlated action sequences that PPO's on-policy rollouts occasionally generate.
 
 
 % =====================================================
@@ -298,19 +264,29 @@ The brief asks four qualitative questions. We answer each with scoreboard number
 % =====================================================
 \section{Theoretical bridge}
 
-The course covered policy-gradient theory, including natural policy gradient (NPG) with softmax parameterization and its slow-changing property \cite{agarwal2020theory, mei2020softmax}, and exploration bonuses such as those in OPPO-style optimistic policy optimization \cite{cai2020provably}. We briefly connect our two policy-based algorithms to that material.
+The course covered natural policy gradient (NPG) with softmax parameterization and its slow-changing property \cite{agarwal2020theory, mei2020softmax}, and exploration bonuses in OPPO-style optimistic policy optimization \cite{cai2020provably}. We connect the two policy-based algorithms in our matrix to that material.
 
-\textbf{PPO as a first-order trust-region surrogate.} Trust-region policy optimization constrains policy updates to a KL ball $\mathrm{KL}(\pi_{\theta_{\text{old}}}\,\|\,\pi_\theta) \leq \delta$. Solving this constrained problem exactly is expensive. PPO's clipped surrogate \eqref{eq:ppo} replaces the explicit KL constraint with a clip on the importance ratio: when $r_t(\theta) \notin [1 - \epsilon, 1 + \epsilon]$, the surrogate is constant in $\theta$ and contributes no gradient. This is a first-order approximation to the trust-region constraint and empirically enforces the slow-changing property of NPG: successive iterates stay close in policy space, but without any second-order machinery.
+\textbf{PPO as a first-order trust-region surrogate.} Trust-region policy optimization constrains updates to a KL ball $\mathrm{KL}(\pi_{\theta_{\text{old}}} \| \pi_\theta) \leq \delta$, which is expensive to solve exactly. PPO's clipped surrogate \eqref{eq:ppo} replaces the explicit constraint with a clip on the importance ratio: when $r_t(\theta) \notin [1{-}\epsilon, 1{+}\epsilon]$ the surrogate is constant in $\theta$ and contributes no gradient. This is a first-order approximation to the trust-region constraint, and our clip-ratio ablation (Fig.~\ref{fig:abl_ppo}) is consistent with the slow-changing intuition: $\epsilon{=}0.1$ is too restrictive to make progress in budget, while $\epsilon{=}0.2$ and $\epsilon{=}0.3$ are roughly equivalent within 200k steps.
 
-\textbf{SAC's entropy bonus as an exploration regularizer.} OPPO-style algorithms add an explicit upper-confidence-bound bonus to the optimization objective to drive exploration toward under-visited state-action pairs \cite{cai2020provably}. SAC's $\alpha\, \mathcal{H}[\pi(\cdot \mid s)]$ regularizer plays a related role: it keeps $\pi$ from collapsing to a deterministic policy until the value function is confident, which is what an exploration bonus achieves operationally. The two have different lineages (max-entropy RL versus optimistic exploration), but both encourage entropy-rich rollouts without an explicit $\varepsilon$ schedule, and our MountainCarContinuous result is a sharp reminder that neither of these soft mechanisms is sufficient when reward is sparse and the optimal policy lies far from the origin in action space.
+\textbf{SAC's entropy bonus as an exploration regularizer.} OPPO-style algorithms add an explicit upper-confidence-bound bonus to drive exploration toward under-visited state-action pairs \cite{cai2020provably}. SAC's $\alpha \mathcal{H}[\pi(\cdot \mid s)]$ regularizer plays a related role at the action level, keeping $\pi$ from collapsing to a deterministic policy until the value function is confident. The two have different lineages, max-entropy RL versus optimistic exploration, but both encourage entropy-rich rollouts without an explicit $\varepsilon$ schedule. Our MCC result is a sharp reminder that neither soft mechanism is sufficient when reward is sparse and the optimal policy lies far from the action-space origin: action-level entropy does not give state-space coverage.
 
 
 % =====================================================
 % Section 10: Conclusion
 % =====================================================
+\section{Limitations and future work}
+
+\textbf{Seed count.} Three seeds per (algorithm, environment) pair. More would tighten our CIs but cost is super-linear in our compute budget; the three-seed bootstrap intervals are wide enough to keep our claims honest, in particular the bimodal CartPole interval for DQN ([111, 259]) which already advertises the seed sensitivity.
+
+\textbf{Network widths fixed.} We use $(64, 64)$ for DQN and PPO and $(256, 256)$ for SAC and TD3, matching the canonical paper defaults. The actor-parameter gap of $\sim 15\times$ is therefore a hyperparameter choice rather than an algorithmic property; we say so explicitly when answering the brief's compactness question. A natural follow-up is to ablate widths within an algorithm to separate the architectural effect from the algorithmic one.
+
+\textbf{Sparse reward $=$ MCC only.} Our headline finding (off-policy continuous methods have a structural exploration gap on sparse reward) is supported by one environment. Generalizing it needs a second sparse-reward continuous benchmark, for example \texttt{Reacher} with a binary success reward or a sparsified version of \texttt{Pendulum} that pays out only on reaching $|\theta| < \delta$. We expect the headline to hold qualitatively, but the failure-mode signature (lazy local optimum vs random thrashing) may shift.
+
+\textbf{No exploration-baseline comparison.} The natural next step is to add RND or NoisyNet on top of SAC and TD3 and re-run the MCC ablation. Does directed exploration close the gap that local entropy and Gaussian noise cannot? This is the cleanest test of the structural claim, because it isolates the exploration mechanism while keeping the policy-optimization backbone fixed.
+
 \section{Conclusion}
 
-We implemented DQN, PPO, SAC and TD3 from scratch in PyTorch and benchmarked them on four classic-control environments with a uniform multi-seed protocol. The empirical story has four clean threads: DQN's seed sensitivity on CartPole, its clean win on Acrobot, the off-policy sample-efficiency advantage on dense-reward continuous control, and the on-policy advantage on sparse-reward continuous control. The implementation diary records the details (truncation bootstrap, tanh log-prob correction, target policy smoothing clips) that mattered between a paper recipe and a working implementation. We were honest about negative results: where DQN is bimodal, where SAC and TD3 plateau, where PPO is slow. The pre-registered ablation sweeps closed two loops: the DQN target-sync U-shape gave a mechanistic explanation for the CartPole bimodality, and the parallel SAC and TD3 exploration sweeps on MountainCarContinuous (zero goal discoveries across 9 seeds in either sweep) established the structural exploration gap of off-policy continuous algorithms on sparse reward as the project's headline scientific finding.
+We implemented DQN, PPO, SAC and TD3 from scratch in PyTorch and benchmarked them on four classic-control environments under a uniform multi-seed protocol. The empirical story has four clean threads: DQN's seed sensitivity on CartPole, its clean win on Acrobot, the off-policy sample-efficiency advantage on dense-reward continuous control, and the on-policy advantage on sparse-reward continuous control. The implementation diary records the details that distinguish a paper recipe from a working agent (truncation bootstrap, tanh Jacobian, per-minibatch advantage normalization, twin target clips, the shared bootstrap-mask convention). We were honest about the negatives where they showed up: DQN's CartPole bimodality, SAC and TD3 plateaus on MCC, PPO's slow Pendulum convergence. The pre-registered ablations closed two loops. The DQN target-sync U-shape gives a mechanistic explanation for the CartPole bimodality. The parallel SAC and TD3 exploration sweeps on MountainCarContinuous (zero goal discoveries across nine seeds in either) establish the structural exploration gap of off-policy continuous algorithms on sparse reward as the headline scientific finding of the project.
 
 
 % =====================================================
