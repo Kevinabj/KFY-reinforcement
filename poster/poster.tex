@@ -82,8 +82,8 @@
 \newcommand{\keynum}[3]{%
   \begin{tikzpicture}
     \node[circle, draw=#1, fill=#1!10, line width=2pt,
-          minimum size=4.2cm, align=center, font=\bfseries] (n) {%
-        \textcolor{#1}{\fontsize{34}{38}\selectfont #2}};
+          minimum size=3.4cm, align=center, font=\bfseries] (n) {%
+        \textcolor{#1}{\fontsize{26}{30}\selectfont #2}};
     \node[below=0.15cm of n, align=center, text width=4.6cm,
           font=\small] {#3};
   \end{tikzpicture}}
@@ -304,7 +304,6 @@
 
     % ---------- Implementation details ----------
     \begin{block}{4. Implementation details that mattered}
-        \small
         \begin{itemize}
             \itemsep0.15em
             \item \algotag[dqncol]{DQN}: target-sync sweep on CartPole gives a \hl{U-shape} ($\tau\in\{100, 1000, 5000\}$). The canonical $\tau{=}1000$ sits at the edge of stability, which explains the seed-bimodality.
@@ -355,13 +354,12 @@
 
     % ---------- Limitations and open questions ----------
     \begin{block}{6. Limitations \& open questions}
-        \small
         \begin{itemize}
-            \itemsep0.1em
-            \item \textbf{Seed count.} 3 seeds per (algo, env). More would tighten CIs but cost is super-linear in our compute budget; the 3-seed bootstrap CIs are wide enough to keep our claims honest.
-            \item \textbf{Network widths fixed.} $(64,64)$ for DQN, PPO and $(256,256)$ for SAC, TD3 (canonical paper defaults). The actor-parameter gap is a hyperparameter choice, not an algorithmic property, and we say so when comparing model sizes.
-            \item \textbf{Sparse reward $=$ MCC only.} Generalizing the headline (off-policy exploration gap on sparse reward) needs a second sparse-reward continuous benchmark, for example \texttt{Reacher} with a binary success reward or a sparsified \texttt{Pendulum}.
-            \item \textbf{No exploration-baseline comparison.} Natural next step: RND or NoisyNet on top of SAC/TD3 and re-run the MCC ablation. Does directed exploration close the gap that local entropy/noise cannot?
+            \itemsep0.05em
+            \item \textbf{Seed count.} 3 per (algo, env); more would tighten CIs at super-linear cost. Bootstrap CIs are wide enough to keep claims honest.
+            \item \textbf{Network widths fixed} at canonical paper defaults: $(64,64)$ for DQN/PPO, $(256,256)$ for SAC/TD3. The actor-parameter gap is a width choice, not an algorithmic property.
+            \item \textbf{Sparse reward $=$ MCC only.} Generalizing the headline needs a second sparse-reward benchmark, e.g.\ \texttt{Reacher} with a binary reward or a sparsified \texttt{Pendulum}.
+            \item \textbf{No exploration baselines.} Natural next step: add RND or NoisyNet on top of SAC/TD3 on MCC; does directed exploration close the gap local entropy/noise cannot?
         \end{itemize}
     \end{block}
 
@@ -416,17 +414,17 @@
         \begin{minipage}[t]{0.32\colwidth}
             \centering
             \includegraphics[width=\linewidth]{../plots/bars/wall_clock.pdf}\\
-            \scriptsize \textbf{Compute}: SAC $>$ TD3 $>$ PPO $>$ DQN.
+            \small \textbf{Compute}: SAC $>$ TD3 $>$ PPO $>$ DQN.
         \end{minipage}\hfill
         \begin{minipage}[t]{0.32\colwidth}
             \centering
             \includegraphics[width=\linewidth]{../plots/bars/sample_efficiency.pdf}\\
-            \scriptsize \textbf{Sample efficiency} (steps to threshold).
+            \small \textbf{Sample efficiency} (steps to threshold).
         \end{minipage}\hfill
         \begin{minipage}[t]{0.32\colwidth}
             \centering
             \includegraphics[width=\linewidth]{../plots/bars/param_count.pdf}\\
-            \scriptsize \textbf{Actor params}, $(64,64)$ vs $(256,256)$.
+            \small \textbf{Actor params}, $(64,64)$ vs $(256,256)$.
         \end{minipage}
     \end{block}
 
@@ -438,7 +436,6 @@
         \vspace{0.6em}
         \begin{itemize}
             \itemsep0.1em
-            \small
             \item \textbf{Discrete actions}: \algotag[dqncol]{DQN} wins on Acrobot, bimodal on CartPole; \algotag[ppocol]{PPO} is more reliable.
             \item \textbf{Dense-reward continuous}: \algotag[saccol]{SAC} and \algotag[td3col]{TD3} dominate, $12.9\times$ over \algotag[ppocol]{PPO} on Pendulum.
             \item \textbf{Sparse-reward continuous}: \algotag[ppocol]{PPO} is the only one to find the MCC goal; the failure is structural, not a tuning issue.
