@@ -95,11 +95,13 @@ with $d_{\text{policy}} = 2$. The smoothed target action is clipped twice, on th
 \subsection{Experimental Setup}
 \label{sec:setup}
 
-\begin{table}[H]
+Table~\ref{tab:envs} lists the four environments with their observation and action spaces, reward structure, and per-pair step budget.
+
+\begin{table}[ht]
 \centering
+\small
 \caption{Environments and per-pair step budget. Each (algorithm, environment) pair is run for three seeds $\{0, 1, 2\}$.}
 \label{tab:envs}
-\small
 \begin{tabular}{lllll}
 \toprule
 Environment & Obs.\ dim & Action space & Reward structure & Step budget \\
@@ -125,14 +127,14 @@ MountainCarContinuous-v0  & 2 & Box([-1, 1])        & Sparse, $+100$ at goal    
 \subsection{Main Comparison}
 \label{sec:main}
 
-\begin{figure}[H]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{../plots/main_grid.pdf}
 \caption{Episode return (mean across 3 seeds, shaded 95\% bootstrap CI) versus environment steps, for every applicable (algorithm, environment) pair. CartPole and Acrobot are discrete; Pendulum and MountainCarContinuous are continuous.}
 \label{fig:main}
 \end{figure}
 
-\begin{table}[H]
+\begin{table}[ht]
 \centering
 \caption{Scoreboard. Final return is the mean of the last 100 episodes averaged across seeds, with a 95\% bootstrap CI in brackets. ``Steps$\to$thr'' is the first env-step at which the seed-averaged 20-episode rolling mean reaches a task-specific threshold (CartPole 475, Acrobot $-100$, Pendulum $-200$, MCC $90$); ``n/r'' means not reached within the step budget. Wall is seconds per $10^{5}$ env steps.}
 \label{tab:scoreboard}
@@ -154,7 +156,7 @@ MountainCarContinuous-v0  & 2 & Box([-1, 1])        & Sparse, $+100$ at goal    
 
 An \emph{ablation} is a controlled experiment in which we vary a single hyperparameter while holding everything else fixed, to attribute observed behaviour to that specific knob. We pre-register an ablation by committing, before running it, to the swept values and the hypothesis we expect. We pre-registered four ablations, one per algorithm, 3 seeds each at a 100k-step budget. Each sweep targets the canonical stress point of its algorithm: DQN target-sync period $\tau$, PPO clip ratio $\epsilon$, SAC temperature $\alpha$, TD3 exploration noise $\sigma$.
 
-\begin{figure}[H]
+\begin{figure}[!htbp]
 \centering
 \begin{subfigure}[t]{0.48\textwidth}\centering
   \includegraphics[width=\linewidth]{../plots/ablations/dqn_target_sync.pdf}
