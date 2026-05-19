@@ -51,10 +51,10 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="All-NaN slic
 
 # ----------------------------------------------------------------------------- style
 ALGO_COLOR = {
-    "dqn": "#1f77b4",   # blue
-    "ppo": "#ff7f0e",   # orange
-    "sac": "#2ca02c",   # green
-    "td3": "#d62728",   # red
+    "dqn": "#1f77b4",   # blue   (matches poster dqncol)
+    "ppo": "#ff7f0e",   # orange (matches poster ppocol)
+    "sac": "#2ca02c",   # green  (matches poster saccol)
+    "td3": "#9467bd",   # purple (matches poster td3col, was #d62728)
 }
 ALGO_LABEL = {"dqn": "DQN", "ppo": "PPO", "sac": "SAC", "td3": "TD3"}
 ALGO_ORDER = ["dqn", "ppo", "sac", "td3"]
@@ -358,6 +358,24 @@ def plot_ablations(abl_dir: Path, out_dir: Path) -> None:
 
 
 # ----------------------------------------------------------------------------- bar charts
+_BAR_TITLE_SIZE = 18
+_BAR_LABEL_SIZE = 17
+_BAR_TICK_SIZE = 15
+_BAR_LEGEND_SIZE = 14
+
+
+def _style_bar_axes(ax) -> None:
+    """Apply poster-readable font sizes to a bar plot."""
+    ax.title.set_fontsize(_BAR_TITLE_SIZE)
+    ax.xaxis.label.set_fontsize(_BAR_LABEL_SIZE)
+    ax.yaxis.label.set_fontsize(_BAR_LABEL_SIZE)
+    ax.tick_params(axis="both", labelsize=_BAR_TICK_SIZE)
+    leg = ax.get_legend()
+    if leg is not None:
+        for txt in leg.get_texts():
+            txt.set_fontsize(_BAR_LEGEND_SIZE)
+
+
 def plot_sample_efficiency(rows: pd.DataFrame, out: Path) -> None:
     """Bar chart of steps-to-threshold per (algo, env)."""
     pivot = rows.pivot_table(index="env", columns="algo", values="steps_to_thr", aggfunc="mean")
@@ -372,12 +390,14 @@ def plot_sample_efficiency(rows: pd.DataFrame, out: Path) -> None:
                       label=ALGO_LABEL[algo], edgecolor="white", linewidth=0.5)
         for xi, v in zip(x + (i - (n - 1) / 2) * w, vals):
             if np.isnan(v):
-                ax.text(xi, 0.5, "n/a", ha="center", va="bottom", fontsize=8, color="gray")
+                ax.text(xi, 0.5, "n/a", ha="center", va="bottom",
+                        fontsize=_BAR_TICK_SIZE - 2, color="gray")
     ax.set_xticks(x)
     ax.set_xticklabels([ENV_LABEL[e] for e in ENV_ORDER], rotation=12, ha="right")
     ax.set_ylabel("Env steps to threshold (thousands)")
     ax.set_title("Sample efficiency: steps to reach the solved threshold")
     ax.legend(loc="best")
+    _style_bar_axes(ax)
     fig.tight_layout()
     fig.savefig(out)
     plt.close(fig)
@@ -401,6 +421,7 @@ def plot_wall_clock(rows: pd.DataFrame, out: Path) -> None:
     ax.set_ylabel("Wall-clock minutes per 100k env steps")
     ax.set_title("Compute cost per iteration")
     ax.legend(loc="best")
+    _style_bar_axes(ax)
     fig.tight_layout()
     fig.savefig(out)
     plt.close(fig)
@@ -424,6 +445,7 @@ def plot_param_count(rows: pd.DataFrame, out: Path) -> None:
     ax.set_ylabel("Actor parameters (thousands)")
     ax.set_title("Deployed policy size")
     ax.legend(loc="best")
+    _style_bar_axes(ax)
     fig.tight_layout()
     fig.savefig(out)
     plt.close(fig)
@@ -536,9 +558,9 @@ def write_scoreboard_latex(board: pd.DataFrame, out: Path) -> None:
     lines.append(r"\midrule")
     for _, r in board.iterrows():
         final = f"{r.final_mean:.1f}\\ \\([{r.final_ci_lo:.0f},{r.final_ci_hi:.0f}]\\)"
-        steps = f"{r.steps_to_thr/1000:.0f}k" if pd.notna(r.steps_to_thr) else "--"
+        steps = f"{r.steps_to_thr/1000:.0f}k" if pd.notna(r.steps_to_thr) else "n/r"
         wall = f"{r.sec_per_100k:.0f}"
-        params = f"{r.actor_params/1000:.1f}k" if pd.notna(r.actor_params) else "--"
+        params = f"{r.actor_params/1000:.1f}k" if pd.notna(r.actor_params) else "n/r"
         on_pol = "yes" if r.on_policy else "no"
         lines.append(
             f"{ALGO_LABEL[r.algo]} & {r.env} & {r.n_seeds} & "
