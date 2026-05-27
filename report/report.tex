@@ -181,7 +181,7 @@ An \emph{ablation} is a controlled experiment in which we vary a single hyperpar
 \label{fig:abl}
 \end{figure}
 
-\textbf{DQN target-sync (Fig.~\ref{fig:abl_dqn}).} Hypothesis: too-frequent sync destabilises, too-rare stalls; canonical $\tau{=}1000$ is the sweet spot. Result: a classic U-shape. $\tau{=}100$ collapses (final rolling means $9.8$, $9.5$, $9.6$, below random); $\tau{=}5000$ plateaus at $97{-}129$; $\tau{=}1000$ is bimodal ($477.6$, $120.0$, $127.1$). The canonical default sits at the edge of stability, which mechanistically explains the CartPole bimodality.
+\textbf{DQN target-sync (Fig.~\ref{fig:abl_dqn}).} Hypothesis: too-frequent sync destabilises, too-rare stalls; canonical $\tau{=}1000$ is the sweet spot. Result: a classic U-shape. $\tau{=}100$ collapses (final rolling means $9.8$, $9.5$, $9.6$, below random); $\tau{=}5000$ plateaus at $97{-}129$; $\tau{=}1000$ is bimodal ($477.6$, $120.0$, $127.0$). The canonical default sits at the edge of stability, which mechanistically explains the CartPole bimodality.
 
 \textbf{PPO clip ratio (Fig.~\ref{fig:abl_ppo}).} Hypothesis: $0.2$ dominates; $0.1$ too conservative; $0.3$ relaxes the trust region too much. Result: partially confirmed. $\epsilon{=}0.1$ is worst (means $-227$, $-199$, $-329$); $0.2$ and $0.3$ are tied within budget. The under-clip failure mode is far more dangerous than the over-clip mode on dense-reward continuous control.
 
