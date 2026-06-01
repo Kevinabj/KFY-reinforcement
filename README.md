@@ -1,6 +1,6 @@
 # Deep RL: DQN, PPO, SAC, TD3
 
-A from-scratch PyTorch re-implementation of four canonical deep reinforcement learning algorithms — DQN, PPO, SAC, and TD3 — compared head-to-head on four Gymnasium classic-control benchmarks (CartPole, Acrobot, Pendulum, MountainCarContinuous). Every run uses three random seeds, and the analysis reports mean episode return with 95% bootstrap confidence intervals so the comparison is honest rather than cherry-picked. The repo also includes four pre-registered ablations, one per algorithm, that stress the canonical hyperparameter each one is most sensitive to.
+A from-scratch PyTorch re-implementation of four canonical deep reinforcement learning algorithms (DQN, PPO, SAC, and TD3) compared head-to-head on four Gymnasium classic-control benchmarks (CartPole, Acrobot, Pendulum, MountainCarContinuous). Every run uses three random seeds, and the analysis reports mean episode return with 95% bootstrap confidence intervals so the comparison is honest rather than cherry-picked. The repo also includes four pre-registered ablations, one per algorithm, that stress the canonical hyperparameter each one is most sensitive to.
 
 ## Requirements
 
@@ -41,10 +41,10 @@ Logs land in `logs/<algo>/<env>/seed<N>.csv`. Once you've trained the runs you c
 
 ## Layout
 
-- `algos/` — the four algorithm implementations
-- `common/` — shared infrastructure (envs, buffers, networks, logging, seeding)
-- `configs/` — per-(algo, env) hyperparameter YAMLs
-- `scripts/` — train, analysis, and plotting entry points
-- `logs/`, `logs_ablation/` — training CSVs from the main matrix and the ablation sweeps
-- `plots/` — generated figures and the scoreboard table
-- `report/`, `poster/` — LaTeX sources for the writeup and the A1 poster
+- `algos/`: the four algorithm implementations
+- `common/`: shared infrastructure (envs, buffers, networks, logging, seeding)
+- `configs/`: per-(algo, env) hyperparameter YAMLs
+- `scripts/`: train, analysis, and plotting entry points
+- `logs/`, `logs_ablation/`: training CSVs from the main matrix and the ablation sweeps
+- `plots/`: generated figures and the scoreboard table
+- `report/`, `poster/`: LaTeX sources for the writeup and the A1 poster
